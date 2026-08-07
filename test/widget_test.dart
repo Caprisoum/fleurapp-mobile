@@ -1,30 +1,59 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:fleurapp_mobile/main.dart';
+import 'package:fleurapp_mobile/app.dart';
+import 'package:fleurapp_mobile/models/cart_item.dart';
+import 'package:fleurapp_mobile/models/order_receipt.dart';
+import 'package:fleurapp_mobile/models/payment_method.dart';
+import 'package:fleurapp_mobile/models/product.dart';
+import 'package:fleurapp_mobile/services/fleur_api_client.dart';
+import 'package:fleurapp_mobile/state/pos_controller.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('affiche le catalogue et ajoute un produit au panier',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    final controller = PosController(apiClient: _FakeApi());
+    await tester.pumpWidget(FleurApp(controller: controller));
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+    expect(find.text('Bouquet champêtre'), findsOneWidget);
+    await tester.tap(find.text('Bouquet champêtre'));
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await tester.tap(find.text('Panier'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Commande en cours'), findsOneWidget);
+    expect(find.text('25,00 €'), findsAtLeastNWidgets(2));
+    expect(find.text('Encaisser'), findsOneWidget);
   });
+}
+
+class _FakeApi implements FleurApiClient {
+  @override
+  Future<List<Product>> fetchProducts() async => const [
+        Product(
+          id: 1,
+          name: 'Bouquet champêtre',
+          priceTtc: 25,
+          vatRate: 20,
+          category: 'Bouquets',
+          stock: 4,
+        ),
+      ];
+
+  @override
+  Future<OrderReceipt> createOrder({
+    required List<CartItem> items,
+    required PaymentMethod paymentMethod,
+  }) async {
+    return const OrderReceipt(orderId: 1, totalTtc: 25, hash: 'test');
+  }
+
+  @override
+  void close() {}
 }

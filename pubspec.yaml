@@ -1,20 +1,20 @@
 name: fleurapp_mobile
-description: "Application Caisse Fleuriste"
-publish_to: 'none'
+description: "Caisse mobile Flutter connectée au backend FleurApp."
+publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  http: ^1.1.0
+  http: ^0.13.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^4.0.0
 
 flutter:
   uses-material-design: true
