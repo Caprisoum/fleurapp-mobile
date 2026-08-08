@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../models/product.dart';
 import '../../../state/pos_controller.dart';
 import 'product_card.dart';
 
 class ProductCatalog extends StatefulWidget {
-  const ProductCatalog({required this.controller, super.key});
+  const ProductCatalog({
+    required this.controller,
+    this.onDeclareWaste,
+    this.onApplyAntiWaste,
+    super.key,
+  });
 
   final PosController controller;
+  final ValueChanged<Product>? onDeclareWaste;
+  final ValueChanged<Product>? onApplyAntiWaste;
 
   @override
   State<ProductCatalog> createState() => _ProductCatalogState();
@@ -142,20 +150,57 @@ class _ProductCatalogState extends State<ProductCatalog> {
                   itemCount: products.length,
                   itemBuilder: (context, index) {
                     final product = products[index];
-                    return ProductCard(
-                      product: product,
-                      onTap: () {
-                        final added = widget.controller.addProduct(product);
-                        if (!added) {
-                          ScaffoldMessenger.of(context)
-                            ..hideCurrentSnackBar()
-                            ..showSnackBar(
-                              const SnackBar(
-                                content: Text('Stock disponible insuffisant.'),
-                              ),
-                            );
-                        }
-                      },
+                    return Stack(
+                      children: [
+                        Positioned.fill(
+                          child: ProductCard(
+                            product: product,
+                            onTap: () {
+                              final added =
+                                  widget.controller.addProduct(product);
+                              if (!added) {
+                                ScaffoldMessenger.of(context)
+                                  ..hideCurrentSnackBar()
+                                  ..showSnackBar(
+                                    const SnackBar(
+                                      content:
+                                          Text('Stock disponible insuffisant.'),
+                                    ),
+                                  );
+                              }
+                            },
+                          ),
+                        ),
+                        if (widget.onDeclareWaste != null ||
+                            product.canApplyAntiWaste)
+                          Positioned(
+                            right: 4,
+                            bottom: 4,
+                            child: PopupMenuButton<String>(
+                              tooltip: 'Actions produit',
+                              onSelected: (action) {
+                                if (action == 'waste') {
+                                  widget.onDeclareWaste?.call(product);
+                                } else {
+                                  widget.onApplyAntiWaste?.call(product);
+                                }
+                              },
+                              itemBuilder: (_) => [
+                                if (widget.onDeclareWaste != null)
+                                  const PopupMenuItem(
+                                    value: 'waste',
+                                    child: Text('Déclarer une perte'),
+                                  ),
+                                if (product.canApplyAntiWaste &&
+                                    widget.onApplyAntiWaste != null)
+                                  const PopupMenuItem(
+                                    value: 'discount',
+                                    child: Text('Appliquer −30 %'),
+                                  ),
+                              ],
+                            ),
+                          ),
+                      ],
                     );
                   },
                 ),

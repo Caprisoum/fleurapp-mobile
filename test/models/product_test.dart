@@ -15,7 +15,8 @@ void main() {
       });
 
       expect(product.id, 12);
-      expect(product.priceTtc, 4.5);
+      expect(product.priceCents, 450);
+      expect(product.vatBasisPoints, 2000);
       expect(product.stock, 7);
       expect(product.category, 'Fleurs coupées');
       expect(product.discountPercent, 30);

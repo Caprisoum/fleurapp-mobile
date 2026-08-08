@@ -1,47 +1,23 @@
 import 'package:flutter/material.dart';
 
 import 'core/theme/app_theme.dart';
-import 'features/pos/pos_screen.dart';
-import 'state/pos_controller.dart';
+import 'features/home/home_shell.dart';
+import 'state/app_controller.dart';
 
-class FleurApp extends StatefulWidget {
-  const FleurApp({
-    required this.controller,
-    this.autoLoad = true,
-    super.key,
-  });
-
-  final PosController controller;
-  final bool autoLoad;
+class FleurApp extends StatelessWidget {
+  const FleurApp({required this.controller, super.key});
+  final AppController controller;
 
   @override
-  State<FleurApp> createState() => _FleurAppState();
-}
-
-class _FleurAppState extends State<FleurApp> {
-  @override
-  void initState() {
-    super.initState();
-    if (widget.autoLoad) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        widget.controller.loadProducts();
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'FleurApp Caisse',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      home: PosScreen(controller: widget.controller),
-    );
-  }
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: controller,
+        builder: (context, _) => MaterialApp(
+          title: 'FleurApp Caisse',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: controller.themeMode,
+          home: HomeShell(appController: controller),
+        ),
+      );
 }

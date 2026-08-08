@@ -85,7 +85,7 @@ class CartPanel extends StatelessWidget {
                     style:
                         TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                 Text(
-                  formatEuro(controller.cartTotal),
+                  formatEuro(controller.cartTotalCents),
                   style: const TextStyle(
                     color: AppTheme.forest,
                     fontSize: 24,
@@ -148,7 +148,7 @@ class _CartLine extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${formatEuro(item.product.priceTtc)} × ${item.quantity}',
+                  '${formatEuro(item.product.priceCents)} × ${item.quantity}',
                   style: const TextStyle(color: Colors.black54, fontSize: 12),
                 ),
                 const SizedBox(height: 9),
@@ -183,7 +183,7 @@ class _CartLine extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                formatEuro(item.totalTtc),
+                formatEuro(item.totalCents),
                 style: const TextStyle(fontWeight: FontWeight.w900),
               ),
             ],
@@ -203,7 +203,7 @@ class _QuantityButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox.square(
-      dimension: 34,
+      dimension: 48,
       child: IconButton.filledTonal(
         padding: EdgeInsets.zero,
         onPressed: onPressed,

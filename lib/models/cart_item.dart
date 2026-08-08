@@ -6,19 +6,13 @@ class CartItem {
   final Product product;
   final int quantity;
 
-  double get totalTtc => product.priceTtc * quantity;
+  int get totalCents => product.priceCents * quantity;
 
-  CartItem copyWith({int? quantity}) {
-    return CartItem(product: product, quantity: quantity ?? this.quantity);
-  }
+  CartItem copyWith({int? quantity}) =>
+      CartItem(product: product, quantity: quantity ?? this.quantity);
 
-  Map<String, dynamic> toApiJson() {
-    return {
-      'id': product.id,
-      'name': product.name,
-      'price_ttc': product.priceTtc,
-      'vat_rate': product.vatRate,
-      'quantity': quantity,
-    };
-  }
+  Map<String, dynamic> toApiJson() => {
+        'id': product.id,
+        'quantity': quantity,
+      };
 }

@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 
 import 'app.dart';
-import 'core/config/app_config.dart';
+import 'services/admin_token_store.dart';
 import 'services/fleur_api_client.dart';
-import 'state/pos_controller.dart';
+import 'services/local_settings_store.dart';
+import 'state/app_controller.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  final apiClient = RenderApiClient(baseUrl: AppConfig.apiBaseUrl);
-  final controller = PosController(apiClient: apiClient);
-
-  runApp(FleurApp(controller: controller));
+  final appController = AppController(
+    apiClient: RenderApiClient(baseUrl: ''),
+    settingsStore: PreferencesLocalSettingsStore(),
+    tokenStore: const SecureAdminTokenStore(),
+  );
+  await appController.initialize();
+  runApp(FleurApp(controller: appController));
 }

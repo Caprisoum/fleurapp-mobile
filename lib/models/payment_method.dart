@@ -1,9 +1,10 @@
 enum PaymentMethod {
-  card('Carte bancaire'),
-  cash('Espèces'),
-  cheque('Chèque');
+  card('Carte bancaire', 'Carte Bancaire - TPE'),
+  cash('Espèces', 'Espèces'),
+  cheque('Chèque', 'Chèque');
 
-  const PaymentMethod(this.apiValue);
+  const PaymentMethod(this.label, this.apiValue);
 
+  final String label;
   final String apiValue;
 }

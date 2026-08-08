@@ -10,6 +10,7 @@
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
 
     <application
+        android:allowBackup="false"
         android:label="FleurApp Caisse"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">

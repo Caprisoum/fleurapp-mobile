@@ -1,12 +1,12 @@
 class ReceiptPrintData {
   const ReceiptPrintData({
     required this.orderId,
-    required this.totalTtc,
+    required this.totalCents,
     required this.lines,
   });
 
   final int orderId;
-  final double totalTtc;
+  final int totalCents;
   final List<String> lines;
 }
 

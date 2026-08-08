@@ -13,6 +13,7 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final available = product.isAvailable;
+    final colors = Theme.of(context).colorScheme;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -39,7 +40,7 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    if (product.discountPercent > 0)
+                    if (product.discountBasisPoints > 0)
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
@@ -48,7 +49,7 @@ class ProductCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          '-${product.discountPercent.toStringAsFixed(0)}%',
+                          '-${product.discountPercent}%',
                           style: const TextStyle(
                             color: Color(0xFFB7462E),
                             fontSize: 11,
@@ -83,9 +84,9 @@ class ProductCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        available ? formatEuro(product.priceTtc) : 'Épuisé',
+                        available ? formatEuro(product.priceCents) : 'Épuisé',
                         style: TextStyle(
-                          color: available ? AppTheme.forest : Colors.black54,
+                          color: available ? colors.primary : colors.outline,
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
                         ),
