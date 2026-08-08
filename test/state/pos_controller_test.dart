@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fleurapp_mobile/models/admin_models.dart';
 import 'package:fleurapp_mobile/models/cart_item.dart';
+import 'package:fleurapp_mobile/models/bug_report.dart';
 import 'package:fleurapp_mobile/models/order_receipt.dart';
 import 'package:fleurapp_mobile/models/payment_method.dart';
 import 'package:fleurapp_mobile/models/product.dart';
@@ -75,6 +76,10 @@ class _FakeApi implements FleurApiClient {
 
   @override
   Future<void> checkHealth() async {}
+
+  @override
+  Future<BugReport> submitBugReport(BugReportDraft report) =>
+      throw UnimplementedError();
 
   @override
   Future<List<ProductCategory>> fetchCategories() async => const [];

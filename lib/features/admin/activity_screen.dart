@@ -8,6 +8,8 @@ import '../../services/api_exception.dart';
 import '../../state/admin_controller.dart';
 import '../../state/app_controller.dart';
 import '../shared/async_state_widgets.dart';
+import '../bugs/bug_report_sheet.dart';
+import 'bug_reports_panel.dart';
 
 class ActivityScreen extends StatelessWidget {
   const ActivityScreen({required this.appController, super.key});
@@ -110,8 +112,9 @@ class ActivityScreen extends StatelessWidget {
             loading: admin.status == AdminStatus.loading,
             error: admin.status == AdminStatus.error ? admin.error : null,
             onRetry: admin.loadAll,
+            onReportBug: () => BugReportSheet.show(context, appController),
             child: DefaultTabController(
-              length: 4,
+              length: 5,
               child: Column(
                 children: [
                   const TabBar(
@@ -129,6 +132,7 @@ class ActivityScreen extends StatelessWidget {
                       Tab(
                           text: 'FEC',
                           icon: Icon(Icons.file_download_outlined)),
+                      Tab(text: 'Bugs', icon: Icon(Icons.bug_report_outlined)),
                     ],
                   ),
                   Expanded(
@@ -144,6 +148,7 @@ class ActivityScreen extends StatelessWidget {
                         _SessionOrders(
                             receipts: appController.pos.sessionReceipts),
                         _FecExport(admin: admin),
+                        BugReportsPanel(appController: appController),
                       ],
                     ),
                   ),

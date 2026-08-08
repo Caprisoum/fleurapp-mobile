@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../core/money.dart';
 import '../models/admin_models.dart';
+import '../models/bug_report.dart';
 import '../models/cart_item.dart';
 import '../models/order_receipt.dart';
 import '../models/payment_method.dart';
@@ -16,6 +17,7 @@ abstract class FleurApiClient {
   Future<void> checkHealth();
   Future<List<Product>> fetchProducts();
   Future<List<ProductCategory>> fetchCategories();
+  Future<BugReport> submitBugReport(BugReportDraft report);
   Future<OrderReceipt> createOrder({
     required List<CartItem> items,
     required PaymentMethod paymentMethod,
@@ -47,6 +49,11 @@ abstract class AdminApiClient {
   Future<ClosureReceipt> closeDay();
   Future<String> exportFec(int year);
   Future<UpcomingAlertsPayload> fetchUpcomingAlerts();
+  Future<List<BugReport>> fetchBugReports({BugReportStatus? status});
+  Future<BugReport> updateBugReportStatus(
+    int id,
+    BugReportStatus status,
+  );
 }
 
 class RenderApiClient implements FleurApiClient, AdminApiClient {
@@ -99,6 +106,25 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
       _getList('/api/categories', ProductCategory.fromJson);
 
   @override
+  Future<BugReport> submitBugReport(BugReportDraft report) async {
+    final payload = await _sendJson(
+      'POST',
+      '/api/bugs',
+      body: report.toJson(),
+      acceptedStatusCodes: const {201},
+    );
+    final bug = payload['bug'];
+    if (bug is! Map) {
+      throw const ApiException('Rapport créé absent de la réponse.');
+    }
+    try {
+      return BugReport.fromJson(Map<String, dynamic>.from(bug));
+    } on FormatException catch (error) {
+      throw ApiException(error.message);
+    }
+  }
+
+  @override
   Future<List<Customer>> fetchCustomers() =>
       _getList('/api/clients', Customer.fromJson, admin: true);
 
@@ -126,6 +152,37 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
     );
     try {
       return UpcomingAlertsPayload.fromJson(payload);
+    } on FormatException catch (error) {
+      throw ApiException(error.message);
+    }
+  }
+
+  @override
+  Future<List<BugReport>> fetchBugReports({BugReportStatus? status}) {
+    final query = <String, String>{'limit': '200'};
+    if (status != null) query['statut'] = status.apiValue;
+    final path =
+        Uri(path: '/api/admin/bugs', queryParameters: query).toString();
+    return _getList(path, BugReport.fromJson, admin: true);
+  }
+
+  @override
+  Future<BugReport> updateBugReportStatus(
+    int id,
+    BugReportStatus status,
+  ) async {
+    final payload = await _sendJson(
+      'PATCH',
+      '/api/admin/bugs/$id',
+      body: {'statut': status.apiValue},
+      admin: true,
+    );
+    final bug = payload['bug'];
+    if (bug is! Map) {
+      throw const ApiException('Rapport actualisé absent de la réponse.');
+    }
+    try {
+      return BugReport.fromJson(Map<String, dynamic>.from(bug));
     } on FormatException catch (error) {
       throw ApiException(error.message);
     }

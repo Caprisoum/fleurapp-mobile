@@ -9,6 +9,7 @@ import '../../services/api_exception.dart';
 import '../../state/admin_controller.dart';
 import '../../state/app_controller.dart';
 import '../shared/async_state_widgets.dart';
+import '../bugs/bug_report_sheet.dart';
 
 class CatalogAdminScreen extends StatefulWidget {
   const CatalogAdminScreen({required this.appController, super.key});
@@ -109,6 +110,7 @@ class _CatalogAdminScreenState extends State<CatalogAdminScreen> {
           loading: admin.status == AdminStatus.loading,
           error: admin.status == AdminStatus.error ? admin.error : null,
           onRetry: admin.loadAll,
+          onReportBug: () => BugReportSheet.show(context, widget.appController),
           child: Stack(
             children: [
               RefreshIndicator(

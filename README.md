@@ -20,6 +20,8 @@ backend Express/PostgreSQL FleurApp déployé sur Render.
   clients en lecture, ventes de la session et export FEC consultable/copiable ;
 - centre d’alertes administrateur : arrivages, commandes différées et besoins
   BOM sur 48 heures, badge dans l’en-tête et rappels locaux sonores à J-1 ;
+- signalement de bugs public depuis Réglages, la connexion et les erreurs réseau,
+  avec version/OS/modèle automatiques et suivi administrateur des statuts ;
 - réglages : URL d’API persistante, test de santé, déconnexion et thème
   système/clair/sombre ;
 - ports séparés pour Stripe Tap to Pay, Bluetooth et impression de tickets.
@@ -38,6 +40,7 @@ lib/
 ├── core/                 # Configuration, argent, formatage et thèmes
 ├── features/
 │   ├── admin/            # Catalogue, stocks, clients, activité, clôtures, FEC
+│   ├── bugs/             # Formulaire public de signalement
 │   ├── home/             # Navigation responsive et transitions
 │   ├── notifications/    # Centre d’alertes et rappels J-1
 │   ├── pos/              # Caisse, panier, paiement et tickets
@@ -176,6 +179,20 @@ arrière-plan et choisissez une batterie sans restriction pour FleurApp.
 
 Ces alertes sont locales, pas des notifications push : l’application doit avoir
 été ouverte et synchronisée au moins une fois pendant la fenêtre de 48 heures.
+
+## Tester un signalement de bug
+
+1. appliquez `setup_security.sql` sur la base du backend après sauvegarde ;
+2. ouvrez **Réglages > Signaler un problème**, saisissez au moins cinq
+   caractères dans le titre et dix dans la description, puis envoyez ;
+3. vérifiez le SnackBar contenant l’identifiant du rapport ;
+4. connectez-vous avec le PIN, ouvrez **Activité > Bugs**, filtrez sur
+   **Nouveau**, puis passez le rapport à **En cours** ou **Résolu** ;
+5. répétez le test depuis l’écran PIN ou depuis un écran d’erreur réseau.
+
+L’application transmet seulement le nom du système, le modèle, la version de
+FleurApp et les champs saisis. Elle ne lit ni numéro de série, ni IMEI, ni autre
+identifiant unique.
 
 ## 5. Qualité et APK de test
 

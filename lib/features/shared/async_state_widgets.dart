@@ -29,6 +29,7 @@ class LoadingOrError extends StatelessWidget {
     required this.error,
     required this.onRetry,
     required this.child,
+    this.onReportBug,
     super.key,
   });
 
@@ -36,6 +37,7 @@ class LoadingOrError extends StatelessWidget {
   final String? error;
   final Future<void> Function() onRetry;
   final Widget child;
+  final VoidCallback? onReportBug;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +62,14 @@ class LoadingOrError extends StatelessWidget {
                   icon: const Icon(Icons.refresh_rounded),
                   label: const Text('Réessayer'),
                 ),
+                if (onReportBug != null) ...[
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: onReportBug,
+                    icon: const Icon(Icons.bug_report_outlined),
+                    label: const Text('Signaler un problème'),
+                  ),
+                ],
               ],
             ),
           ),

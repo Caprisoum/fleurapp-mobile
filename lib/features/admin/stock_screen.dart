@@ -8,6 +8,7 @@ import '../../services/api_exception.dart';
 import '../../state/admin_controller.dart';
 import '../../state/app_controller.dart';
 import '../shared/async_state_widgets.dart';
+import '../bugs/bug_report_sheet.dart';
 
 class StockScreen extends StatelessWidget {
   const StockScreen({required this.appController, super.key});
@@ -69,6 +70,7 @@ class StockScreen extends StatelessWidget {
             loading: admin.status == AdminStatus.loading,
             error: admin.status == AdminStatus.error ? admin.error : null,
             onRetry: admin.loadAll,
+            onReportBug: () => BugReportSheet.show(context, appController),
             child: DefaultTabController(
               length: 4,
               child: Column(

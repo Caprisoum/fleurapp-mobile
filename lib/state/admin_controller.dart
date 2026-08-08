@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/admin_models.dart';
+import '../models/bug_report.dart';
 import '../models/product.dart';
 import '../services/api_exception.dart';
 import '../services/fleur_api_client.dart';
@@ -17,6 +18,7 @@ class AdminController extends ChangeNotifier {
   List<StockReception> receptions = const [];
   List<WasteRecord> wasteRecords = const [];
   List<ClosureRecord> closures = const [];
+  List<BugReport> bugReports = const [];
   AdminStatus status = AdminStatus.initial;
   String? error;
   bool busy = false;
@@ -37,6 +39,7 @@ class AdminController extends ChangeNotifier {
         _apiClient.fetchStockReceptions(),
         _apiClient.fetchWasteRecords(),
         _apiClient.fetchClosures(),
+        _apiClient.fetchBugReports(),
       ]);
       products = values[0] as List<Product>;
       categories = values[1] as List<ProductCategory>;
@@ -44,6 +47,7 @@ class AdminController extends ChangeNotifier {
       receptions = values[3] as List<StockReception>;
       wasteRecords = values[4] as List<WasteRecord>;
       closures = values[5] as List<ClosureRecord>;
+      bugReports = values[6] as List<BugReport>;
       status = AdminStatus.ready;
     } on ApiException catch (exception) {
       status = AdminStatus.error;
@@ -65,6 +69,7 @@ class AdminController extends ChangeNotifier {
     receptions = const [];
     wasteRecords = const [];
     closures = const [];
+    bugReports = const [];
     status = AdminStatus.initial;
     error = null;
     busy = false;
@@ -145,6 +150,25 @@ class AdminController extends ChangeNotifier {
     wasteRecords = values[0] as List<WasteRecord>;
     closures = values[1] as List<ClosureRecord>;
     customers = values[2] as List<Customer>;
+    _notify();
+  }
+
+  Future<void> refreshBugReports() async {
+    bugReports = await _apiClient.fetchBugReports();
+    _notify();
+  }
+
+  Future<void> updateBugReportStatus(
+    BugReport report,
+    BugReportStatus status,
+  ) async {
+    late BugReport updated;
+    await _action(() async {
+      updated = await _apiClient.updateBugReportStatus(report.id, status);
+    });
+    bugReports = bugReports
+        .map((item) => item.id == updated.id ? updated : item)
+        .toList(growable: false);
     _notify();
   }
 

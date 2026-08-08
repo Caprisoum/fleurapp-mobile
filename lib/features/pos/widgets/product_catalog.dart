@@ -10,12 +10,14 @@ class ProductCatalog extends StatefulWidget {
     required this.controller,
     this.onDeclareWaste,
     this.onApplyAntiWaste,
+    this.onReportBug,
     super.key,
   });
 
   final PosController controller;
   final ValueChanged<Product>? onDeclareWaste;
   final ValueChanged<Product>? onApplyAntiWaste;
+  final VoidCallback? onReportBug;
 
   @override
   State<ProductCatalog> createState() => _ProductCatalogState();
@@ -49,6 +51,7 @@ class _ProductCatalogState extends State<ProductCatalog> {
       return _CatalogError(
         message: widget.controller.catalogError ?? 'Catalogue indisponible.',
         onRetry: widget.controller.loadProducts,
+        onReportBug: widget.onReportBug,
       );
     }
 
@@ -242,10 +245,15 @@ class _CategoryChip extends StatelessWidget {
 }
 
 class _CatalogError extends StatelessWidget {
-  const _CatalogError({required this.message, required this.onRetry});
+  const _CatalogError({
+    required this.message,
+    required this.onRetry,
+    this.onReportBug,
+  });
 
   final String message;
   final VoidCallback onRetry;
+  final VoidCallback? onReportBug;
 
   @override
   Widget build(BuildContext context) {
@@ -278,6 +286,14 @@ class _CatalogError extends StatelessWidget {
                   icon: const Icon(Icons.refresh_rounded),
                   label: const Text('Réessayer'),
                 ),
+                if (onReportBug != null) ...[
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: onReportBug,
+                    icon: const Icon(Icons.bug_report_outlined),
+                    label: const Text('Signaler un problème'),
+                  ),
+                ],
               ],
             ),
           ),

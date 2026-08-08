@@ -143,6 +143,13 @@ void main() {
     expect(find.text('Clôtures'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
+    await tester.ensureVisible(find.text('Bugs'));
+    await tester.tap(find.text('Bugs'));
+    await tester.pumpAndSettle();
+    expect(find.text('Rapports de bugs'), findsOneWidget);
+    expect(find.text('Filtrer par statut'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
     await tester.tap(find.byIcon(Icons.settings_outlined).last);
     await tester.pumpAndSettle();
     expect(find.text('Serveur Render'), findsOneWidget);
@@ -152,6 +159,84 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Alertes à venir'), findsOneWidget);
     expect(find.text('Arrivage à venir — Rose rouge'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('signale un problème depuis les réglages sur format Poco F7',
+      (tester) async {
+    tester.view.physicalSize = const Size(393, 873);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    http.Request? bugRequest;
+    final api = RenderApiClient(
+      baseUrl: '',
+      httpClient: MockClient((request) async {
+        if (request.url.path == '/api/bugs') {
+          bugRequest = request;
+          return http.Response(
+            jsonEncode({
+              'success': true,
+              'bug': {
+                'id': 31,
+                'titre': 'Bouton panier bloqué',
+                'description':
+                    'Le bouton ne répond plus après plusieurs appuis.',
+                'categorie': 'Autre',
+                'appareil_info': {
+                  'os': 'Système inconnu',
+                  'modele': 'Appareil inconnu',
+                },
+                'version_app': 'inconnue',
+                'statut': 'NOUVEAU',
+                'created_at': '2026-08-08T20:00:00.000Z',
+              },
+            }),
+            201,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }
+        return http.Response(
+          jsonEncode(<Object>[]),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
+      }),
+    );
+    final controller = AppController(
+      apiClient: api,
+      settingsStore: _MemorySettingsStore(),
+      tokenStore: _MemoryTokenStore(),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+    await tester.pumpWidget(FleurApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.settings_outlined).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Signaler un problème'));
+    await tester.pumpAndSettle();
+    expect(find.text('Signaler un problème'), findsWidgets);
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Ex. Impossible de valider le panier'),
+      'Bouton panier bloqué',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField,
+          'Étapes réalisées, résultat attendu et message affiché…'),
+      'Le bouton ne répond plus après plusieurs appuis.',
+    );
+    tester.testTextInput.hide();
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Envoyer le rapport'));
+    await tester.tap(find.text('Envoyer le rapport'));
+    await tester.pumpAndSettle();
+
+    expect(bugRequest?.url.path, '/api/bugs');
+    expect(find.text('Rapport #31 envoyé. Merci !'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

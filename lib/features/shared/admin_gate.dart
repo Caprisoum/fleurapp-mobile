@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../services/api_exception.dart';
 import '../../state/admin_controller.dart';
 import '../../state/app_controller.dart';
+import '../bugs/bug_report_sheet.dart';
 
 class AdminGate extends StatefulWidget {
   const AdminGate(
@@ -134,6 +135,15 @@ class _AdminGateState extends State<AdminGate> {
                           )
                         : const Icon(Icons.lock_open_rounded),
                     label: const Text('Se connecter'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () => BugReportSheet.show(
+                      context,
+                      widget.appController,
+                    ),
+                    icon: const Icon(Icons.bug_report_outlined),
+                    label: const Text('Signaler un problème'),
                   ),
                 ],
               ),

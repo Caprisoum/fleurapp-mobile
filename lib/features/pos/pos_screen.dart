@@ -6,6 +6,7 @@ import '../../models/order_receipt.dart';
 import '../../models/product.dart';
 import '../../services/api_exception.dart';
 import '../../state/app_controller.dart';
+import '../bugs/bug_report_sheet.dart';
 import 'widgets/cart_panel.dart';
 import 'widgets/payment_sheet.dart';
 import 'widgets/product_catalog.dart';
@@ -313,6 +314,7 @@ class _PosScreenState extends State<PosScreen> {
         controller: widget.appController.pos,
         onDeclareWaste: _declareWaste,
         onApplyAntiWaste: _applyAntiWaste,
+        onReportBug: () => BugReportSheet.show(context, widget.appController),
       );
 
   Widget _cart() => CartPanel(

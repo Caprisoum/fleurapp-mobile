@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/api_exception.dart';
 import '../../state/app_controller.dart';
+import '../bugs/bug_report_sheet.dart';
 import '../shared/async_state_widgets.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -142,6 +143,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Card(
+            child: ListTile(
+              minVerticalPadding: 14,
+              leading: const Icon(Icons.bug_report_outlined),
+              title: const Text('Signaler un problème'),
+              subtitle: const Text(
+                'Envoyez un rapport avec la version et le modèle de cet appareil.',
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => BugReportSheet.show(context, widget.appController),
             ),
           ),
           const SizedBox(height: 10),

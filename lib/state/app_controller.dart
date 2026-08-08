@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../services/admin_token_store.dart';
 import '../services/api_exception.dart';
+import '../services/device_metadata_service.dart';
 import '../services/fleur_api_client.dart';
 import '../services/local_settings_store.dart';
 import '../services/local_alert_scheduler.dart';
 import 'admin_controller.dart';
 import 'pos_controller.dart';
 import 'upcoming_alerts_controller.dart';
+import '../models/bug_report.dart';
 
 class AppController extends ChangeNotifier {
   AppController({
@@ -15,9 +17,12 @@ class AppController extends ChangeNotifier {
     required LocalSettingsStore settingsStore,
     required AdminTokenStore tokenStore,
     LocalAlertScheduler alertScheduler = const NoopLocalAlertScheduler(),
+    DeviceMetadataService deviceMetadataService =
+        const FallbackDeviceMetadataService(),
   })  : _apiClient = apiClient,
         _settingsStore = settingsStore,
         _tokenStore = tokenStore,
+        _deviceMetadataService = deviceMetadataService,
         pos = PosController(apiClient: apiClient),
         admin = AdminController(apiClient: apiClient),
         upcomingAlerts = UpcomingAlertsController(
@@ -28,6 +33,7 @@ class AppController extends ChangeNotifier {
   final RenderApiClient _apiClient;
   final LocalSettingsStore _settingsStore;
   final AdminTokenStore _tokenStore;
+  final DeviceMetadataService _deviceMetadataService;
   final PosController pos;
   final AdminController admin;
   final UpcomingAlertsController upcomingAlerts;
@@ -148,6 +154,20 @@ class AppController extends ChangeNotifier {
     } finally {
       _apiClient.updateBaseUrl(previous);
     }
+  }
+
+  Future<BugReport> submitBugReport({
+    required String title,
+    required String description,
+    required BugCategory category,
+  }) async {
+    final metadata = await _deviceMetadataService.load();
+    return _apiClient.submitBugReport(BugReportDraft(
+      title: title,
+      description: description,
+      category: category,
+      device: metadata,
+    ));
   }
 
   Future<void> setThemeMode(ThemeMode value) async {

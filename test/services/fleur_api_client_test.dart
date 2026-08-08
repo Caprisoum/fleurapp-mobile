@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fleurapp_mobile/models/cart_item.dart';
+import 'package:fleurapp_mobile/models/bug_report.dart';
 import 'package:fleurapp_mobile/models/payment_method.dart';
 import 'package:fleurapp_mobile/models/product.dart';
 import 'package:fleurapp_mobile/services/api_exception.dart';
@@ -133,6 +134,91 @@ void main() {
     expect(sentRequest.headers['Bypass-Tunnel-Reminder'], 'FleurApp-Mobile');
     expect(payload.summary.orders, 1);
     expect(payload.alerts.single.hoursUntil, 26);
+    api.close();
+  });
+
+  test('envoie un rapport public avec les métadonnées sans JWT', () async {
+    late http.Request sentRequest;
+    final api = RenderApiClient(
+      baseUrl: 'https://fleurapp-test.onrender.com',
+      httpClient: MockClient((request) async {
+        sentRequest = request;
+        return _jsonResponse({
+          'success': true,
+          'bug': {
+            'id': 12,
+            'titre': 'Écran de paiement bloqué',
+            'description': 'Le bouton de validation ne répond plus.',
+            'categorie': 'Paiement',
+            'appareil_info': {
+              'os': 'Android 15 (SDK 35)',
+              'modele': 'Xiaomi POCO F7',
+            },
+            'version_app': '1.2.0+3',
+            'statut': 'NOUVEAU',
+            'created_at': '2026-08-08T20:00:00.000Z',
+          },
+        }, statusCode: 201);
+      }),
+    )..updateAdminToken('jwt-qui-ne-doit-pas-partir');
+
+    final report = await api.submitBugReport(const BugReportDraft(
+      title: 'Écran de paiement bloqué',
+      description: 'Le bouton de validation ne répond plus.',
+      category: BugCategory.payment,
+      device: BugDeviceMetadata(
+        os: 'Android 15 (SDK 35)',
+        model: 'Xiaomi POCO F7',
+        appVersion: '1.2.0+3',
+      ),
+    ));
+    final body = jsonDecode(sentRequest.body) as Map<String, dynamic>;
+    expect(sentRequest.method, 'POST');
+    expect(sentRequest.url.path, '/api/bugs');
+    expect(sentRequest.headers.containsKey('Authorization'), isFalse);
+    expect(body['categorie'], 'Paiement');
+    expect((body['appareil_info'] as Map)['modele'], 'Xiaomi POCO F7');
+    expect(report.id, 12);
+    expect(report.status, BugReportStatus.newReport);
+    api.close();
+  });
+
+  test('liste et traite les rapports avec le JWT admin', () async {
+    final requests = <http.Request>[];
+    final stored = {
+      'id': 22,
+      'titre': 'Décalage visuel',
+      'description': 'Le texte dépasse sur un petit écran Android.',
+      'categorie': 'UI',
+      'appareil_info': {'os': 'Android 15', 'modele': 'POCO F7'},
+      'version_app': '1.2.0+3',
+      'statut': 'RESOLU',
+      'created_at': '2026-08-08T20:00:00.000Z',
+    };
+    final api = RenderApiClient(
+      baseUrl: 'https://fleurapp-test.onrender.com',
+      httpClient: MockClient((request) async {
+        requests.add(request);
+        return request.method == 'GET'
+            ? _jsonResponse([stored])
+            : _jsonResponse({'success': true, 'bug': stored});
+      }),
+    )..updateAdminToken('jwt-bugs');
+
+    final reports = await api.fetchBugReports(status: BugReportStatus.resolved);
+    final updated = await api.updateBugReportStatus(
+      reports.single.id,
+      BugReportStatus.resolved,
+    );
+    expect(requests.first.url.queryParameters, {
+      'limit': '200',
+      'statut': 'RESOLU',
+    });
+    expect(requests.first.headers['Authorization'], 'Bearer jwt-bugs');
+    expect(requests.last.method, 'PATCH');
+    expect(requests.last.url.path, '/api/admin/bugs/22');
+    expect(jsonDecode(requests.last.body), {'statut': 'RESOLU'});
+    expect(updated.status, BugReportStatus.resolved);
     api.close();
   });
 
