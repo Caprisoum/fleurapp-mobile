@@ -9,6 +9,7 @@ import '../models/cart_item.dart';
 import '../models/order_receipt.dart';
 import '../models/payment_method.dart';
 import '../models/product.dart';
+import '../models/upcoming_alert.dart';
 import 'api_exception.dart';
 
 abstract class FleurApiClient {
@@ -45,6 +46,7 @@ abstract class AdminApiClient {
   Future<List<ClosureRecord>> fetchClosures();
   Future<ClosureReceipt> closeDay();
   Future<String> exportFec(int year);
+  Future<UpcomingAlertsPayload> fetchUpcomingAlerts();
 }
 
 class RenderApiClient implements FleurApiClient, AdminApiClient {
@@ -114,6 +116,20 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
   @override
   Future<List<ClosureRecord>> fetchClosures() =>
       _getList('/api/clotures', ClosureRecord.fromJson, admin: true);
+
+  @override
+  Future<UpcomingAlertsPayload> fetchUpcomingAlerts() async {
+    final payload = await _sendJson(
+      'GET',
+      '/api/notifications/a-venir',
+      admin: true,
+    );
+    try {
+      return UpcomingAlertsPayload.fromJson(payload);
+    } on FormatException catch (error) {
+      throw ApiException(error.message);
+    }
+  }
 
   @override
   Future<OrderReceipt> createOrder({
@@ -315,6 +331,7 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
     final headers = <String, String>{
       'Accept': 'application/json',
       'Content-Type': 'application/json; charset=UTF-8',
+      'Bypass-Tunnel-Reminder': 'FleurApp-Mobile',
     };
     if (admin) {
       final token = _adminToken;

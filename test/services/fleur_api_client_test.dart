@@ -91,6 +91,51 @@ void main() {
     api.close();
   });
 
+  test('charge et valide le centre d’alertes avec le JWT admin', () async {
+    late http.Request sentRequest;
+    final api = RenderApiClient(
+      baseUrl: 'https://fleurapp-test.ngrok-free.app',
+      httpClient: MockClient((request) async {
+        sentRequest = request;
+        return _jsonResponse({
+          'generatedAt': '2026-08-08T08:00:00.000Z',
+          'window': {
+            'to': '2026-08-10T08:00:00.000Z',
+            'timeZone': 'Europe/Paris',
+          },
+          'summary': {
+            'total': 1,
+            'arrivals': 0,
+            'orders': 1,
+            'bomAlerts': 0,
+            'critical': 0,
+          },
+          'notifications': [
+            {
+              'id': 'order:42:2026-08-09T10:00:00.000Z',
+              'type': 'order',
+              'severity': 'warning',
+              'title': 'Commande #42 à préparer',
+              'message': 'Livraison demain.',
+              'eventAt': '2026-08-09T10:00:00.000Z',
+              'remindAt': '2026-08-08T10:00:00.000Z',
+              'hoursUntil': 26,
+              'data': {'orderId': 42},
+            }
+          ],
+        });
+      }),
+    )..updateAdminToken('jwt-notifications');
+
+    final payload = await api.fetchUpcomingAlerts();
+    expect(sentRequest.url.path, '/api/notifications/a-venir');
+    expect(sentRequest.headers['Authorization'], 'Bearer jwt-notifications');
+    expect(sentRequest.headers['Bypass-Tunnel-Reminder'], 'FleurApp-Mobile');
+    expect(payload.summary.orders, 1);
+    expect(payload.alerts.single.hoursUntil, 26);
+    api.close();
+  });
+
   test('signale clairement une URL non configurée', () async {
     final api = RenderApiClient(
       baseUrl: '',

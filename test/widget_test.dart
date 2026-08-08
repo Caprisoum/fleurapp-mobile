@@ -82,6 +82,33 @@ void main() {
                 'stock_actuel': 12,
               }
             ],
+          '/api/notifications/a-venir' => {
+              'generatedAt': '2026-08-08T08:00:00.000Z',
+              'window': {
+                'to': '2026-08-10T08:00:00.000Z',
+                'timeZone': 'Europe/Paris',
+              },
+              'summary': {
+                'total': 1,
+                'arrivals': 1,
+                'orders': 0,
+                'bomAlerts': 0,
+                'critical': 0,
+              },
+              'notifications': [
+                {
+                  'id': 'arrival:1:2026-08-09T06:00:00.000Z',
+                  'type': 'arrival',
+                  'severity': 'info',
+                  'title': 'Arrivage à venir — Rose rouge',
+                  'message': 'Arrivage prévu demain.',
+                  'eventAt': '2026-08-09T06:00:00.000Z',
+                  'remindAt': '2026-08-08T06:00:00.000Z',
+                  'hoursUntil': 22,
+                  'data': {'productId': 1},
+                }
+              ],
+            },
           _ => <Object>[],
         };
         return http.Response(
@@ -119,6 +146,12 @@ void main() {
     await tester.tap(find.byIcon(Icons.settings_outlined).last);
     await tester.pumpAndSettle();
     expect(find.text('Serveur Render'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byIcon(Icons.notifications_outlined).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Alertes à venir'), findsOneWidget);
+    expect(find.text('Arrivage à venir — Rose rouge'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

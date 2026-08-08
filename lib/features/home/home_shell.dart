@@ -5,6 +5,7 @@ import '../../state/app_controller.dart';
 import '../admin/activity_screen.dart';
 import '../admin/catalog_admin_screen.dart';
 import '../admin/stock_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../pos/pos_screen.dart';
 import '../settings/settings_screen.dart';
 import '../shared/admin_gate.dart';
@@ -17,8 +18,39 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.appController.refreshUpcomingAlerts();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      widget.appController.refreshUpcomingAlerts();
+    }
+  }
+
+  void _openNotifications() {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => AdminGate(
+        appController: widget.appController,
+        child: NotificationsScreen(appController: widget.appController),
+      ),
+    ));
+  }
 
   static const _destinations = [
     _Destination(
@@ -93,6 +125,22 @@ class _HomeShellState extends State<HomeShell> {
                 ],
               ),
               actions: [
+                AnimatedBuilder(
+                  animation: widget.appController.upcomingAlerts,
+                  builder: (context, _) {
+                    final count =
+                        widget.appController.upcomingAlerts.alertCount;
+                    return IconButton(
+                      tooltip: 'Alertes à venir',
+                      onPressed: _openNotifications,
+                      icon: Badge(
+                        isLabelVisible: count > 0,
+                        label: Text(count > 99 ? '99+' : '$count'),
+                        child: const Icon(Icons.notifications_outlined),
+                      ),
+                    );
+                  },
+                ),
                 Tooltip(
                   message: widget.appController.adminAuthenticated
                       ? 'Administrateur connecté'

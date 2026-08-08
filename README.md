@@ -18,6 +18,8 @@ backend Express/PostgreSQL FleurApp déployé sur Render.
 - stocks : niveaux réels, réceptions converties, pertes/rebuts et historiques ;
 - activité : clôture Z définitive, totaux/TVA/modes de paiement, historique,
   clients en lecture, ventes de la session et export FEC consultable/copiable ;
+- centre d’alertes administrateur : arrivages, commandes différées et besoins
+  BOM sur 48 heures, badge dans l’en-tête et rappels locaux sonores à J-1 ;
 - réglages : URL d’API persistante, test de santé, déconnexion et thème
   système/clair/sombre ;
 - ports séparés pour Stripe Tap to Pay, Bluetooth et impression de tickets.
@@ -37,13 +39,14 @@ lib/
 ├── features/
 │   ├── admin/            # Catalogue, stocks, clients, activité, clôtures, FEC
 │   ├── home/             # Navigation responsive et transitions
+│   ├── notifications/    # Centre d’alertes et rappels J-1
 │   ├── pos/              # Caisse, panier, paiement et tickets
 │   ├── settings/         # URL Render, santé, session et apparence
 │   └── shared/           # Garde PIN/JWT et retours d’erreur
 ├── integrations/         # Ports Tap to Pay, Bluetooth et impression
 ├── models/               # Contrats API typés, montants en centimes
-├── services/             # HTTP, stockage sécurisé et préférences
-├── state/                # AppController, PosController et AdminController
+├── services/             # HTTP, stockage sécurisé, préférences et rappels
+├── state/                # État caisse, admin, application et alertes
 ├── app.dart
 └── main.dart
 ```
@@ -128,6 +131,51 @@ flutter run \
 Le téléphone communique directement avec Render en HTTPS. Pour un backend
 local depuis l’émulateur Android, seule l’adresse `http://10.0.2.2:PORT` est
 autorisée en développement ; utilisez HTTPS en dehors de localhost.
+
+### Tester avec un tunnel de développement
+
+Dans le dépôt backend, démarrez le serveur sur le port 3000 :
+
+```bash
+cd /home/ipsoum/fleurapp_project/fleurapp_backend_ui
+npm run dev:tunnel
+```
+
+Dans un second terminal, lancez l’une des commandes affichées :
+
+```bash
+npx localtunnel --port 3000
+# ou, si ngrok est installé :
+ngrok http 3000
+```
+
+Dans **Réglages > Serveur Render**, remplacez temporairement l’URL par l’URL
+HTTPS du tunnel, testez-la puis enregistrez-la. Le client ajoute le header de
+contournement de la page d’avertissement localtunnel ; aucun secret n’est placé
+dans l’APK.
+
+## Rappels d’arrivages et de commandes
+
+Après connexion avec le PIN administrateur, touchez la cloche en haut de
+l’écran puis **Activer les rappels**. Android 13 ou plus récent affiche sa boîte
+de dialogue d’autorisation. FleurApp synchronise ensuite les alertes au login,
+à l’ouverture du centre et à chaque retour de l’application au premier plan.
+
+Pour un test fonctionnel :
+
+1. créez une commande différée avec une livraison dans les 24 à 48 heures ;
+2. ou donnez à un produit suivi une date d’arrivage dans les deux prochains
+   jours ;
+3. ouvrez la cloche et tirez la liste vers le bas ;
+4. vérifiez l’alerte visuelle et le nombre de rappels programmés.
+
+Si l’événement commence dans moins de 24 heures, le rappel J-1 devenu imminent
+est affiché immédiatement. Sinon Android le programme environ 24 heures avant,
+avec son et vibration. Sur HyperOS/Poco, autorisez au besoin l’exécution en
+arrière-plan et choisissez une batterie sans restriction pour FleurApp.
+
+Ces alertes sont locales, pas des notifications push : l’application doit avoir
+été ouverte et synchronisée au moins une fois pendant la fenêtre de 48 heures.
 
 ## 5. Qualité et APK de test
 
