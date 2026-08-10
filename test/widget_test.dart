@@ -121,6 +121,82 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('sélecteur de thème compact et adaptatif en clair et sombre',
+      (tester) async {
+    tester.view.physicalSize = const Size(393, 873);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final api = RenderApiClient(
+      baseUrl: '',
+      httpClient: MockClient((request) async => http.Response(
+            jsonEncode(<Object>[]),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          )),
+    );
+    final controller = AppController(
+      apiClient: api,
+      settingsStore: const _MemorySettingsStore(),
+      tokenStore: _MemoryTokenStore(),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+    await tester.pumpWidget(FleurApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.settings_outlined).last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('theme-mode-selector')));
+    await tester.pumpAndSettle();
+
+    final systemLabel = tester.widget<Text>(find.text('Système'));
+    expect(systemLabel.maxLines, 1);
+    expect(systemLabel.softWrap, isFalse);
+
+    final lightSelector = tester.widget<SegmentedButton<ThemeMode>>(
+      find.byKey(const Key('theme-mode-selector')),
+    );
+    final lightContext =
+        tester.element(find.byKey(const Key('theme-mode-selector')));
+    final lightColors = Theme.of(lightContext).colorScheme;
+    expect(
+      lightSelector.style?.backgroundColor?.resolve({WidgetState.selected}),
+      lightColors.primaryContainer,
+    );
+    expect(
+      lightSelector.style?.backgroundColor?.resolve({}),
+      lightColors.surfaceContainerHighest,
+    );
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Sombre'));
+    await tester.pumpAndSettle();
+
+    final darkSelector = tester.widget<SegmentedButton<ThemeMode>>(
+      find.byKey(const Key('theme-mode-selector')),
+    );
+    final darkContext =
+        tester.element(find.byKey(const Key('theme-mode-selector')));
+    final darkTheme = Theme.of(darkContext);
+    expect(controller.themeMode, ThemeMode.dark);
+    expect(darkTheme.brightness, Brightness.dark);
+    expect(
+      darkSelector.style?.backgroundColor?.resolve({WidgetState.selected}),
+      darkTheme.colorScheme.primaryContainer,
+    );
+    expect(
+      darkSelector.style?.foregroundColor?.resolve({}),
+      darkTheme.colorScheme.onSurfaceVariant,
+    );
+    expect(
+      darkTheme.colorScheme.primaryContainer,
+      isNot(lightColors.primaryContainer),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('navigue sans overflow sur les modules Poco F7', (tester) async {
     tester.view.physicalSize = const Size(393, 873);
     tester.view.devicePixelRatio = 1;

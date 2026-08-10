@@ -171,26 +171,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           .titleLarge
                           ?.copyWith(fontWeight: FontWeight.w800)),
                   const SizedBox(height: 12),
-                  SegmentedButton<ThemeMode>(
-                    segments: const [
-                      ButtonSegment(
-                          value: ThemeMode.system,
-                          icon: Icon(Icons.brightness_auto_rounded),
-                          label: Text('Système')),
-                      ButtonSegment(
-                          value: ThemeMode.light,
-                          icon: Icon(Icons.light_mode_outlined),
-                          label: Text('Clair')),
-                      ButtonSegment(
-                          value: ThemeMode.dark,
-                          icon: Icon(Icons.dark_mode_outlined),
-                          label: Text('Sombre')),
-                    ],
-                    selected: {widget.appController.themeMode},
-                    showSelectedIcon: false,
-                    onSelectionChanged: (value) =>
-                        widget.appController.setThemeMode(value.single),
-                  ),
+                  _ThemeModeSelector(appController: widget.appController),
                 ],
               ),
             ),
@@ -243,4 +224,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       );
+}
+
+class _ThemeModeSelector extends StatelessWidget {
+  const _ThemeModeSelector({required this.appController});
+
+  final AppController appController;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return SegmentedButton<ThemeMode>(
+      key: const Key('theme-mode-selector'),
+      expandedInsets: EdgeInsets.zero,
+      segments: const [
+        ButtonSegment(
+          value: ThemeMode.system,
+          icon: Icon(Icons.brightness_auto_rounded, size: 18),
+          label: Text('Système', maxLines: 1, softWrap: false),
+        ),
+        ButtonSegment(
+          value: ThemeMode.light,
+          icon: Icon(Icons.light_mode_outlined, size: 18),
+          label: Text('Clair', maxLines: 1, softWrap: false),
+        ),
+        ButtonSegment(
+          value: ThemeMode.dark,
+          icon: Icon(Icons.dark_mode_outlined, size: 18),
+          label: Text('Sombre', maxLines: 1, softWrap: false),
+        ),
+      ],
+      selected: {appController.themeMode},
+      showSelectedIcon: false,
+      style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size.fromHeight(48)),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+        ),
+        textStyle: const WidgetStatePropertyAll(
+          TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+        ),
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? colors.onPrimaryContainer
+              : colors.onSurfaceVariant,
+        ),
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? colors.primaryContainer
+              : colors.surfaceContainerHighest,
+        ),
+        side: WidgetStateProperty.resolveWith(
+          (states) => BorderSide(
+            color: states.contains(WidgetState.selected)
+                ? colors.primary
+                : colors.outlineVariant,
+          ),
+        ),
+      ),
+      onSelectionChanged: (value) => appController.setThemeMode(value.single),
+    );
+  }
 }
