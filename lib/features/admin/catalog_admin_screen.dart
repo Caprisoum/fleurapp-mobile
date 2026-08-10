@@ -419,12 +419,17 @@ class _CatalogImportDialogState extends State<CatalogImportDialog> {
               const SizedBox(height: 10),
               DropdownButtonFormField<CatalogDuplicateMode>(
                 value: _duplicateMode,
+                isExpanded: true,
                 decoration:
                     const InputDecoration(labelText: 'Produits existants'),
                 items: CatalogDuplicateMode.values
                     .map((mode) => DropdownMenuItem(
                           value: mode,
-                          child: Text(mode.label),
+                          child: Text(
+                            mode.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ))
                     .toList(growable: false),
                 onChanged: _busy

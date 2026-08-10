@@ -46,7 +46,7 @@ case "${1:-all}" in
       echo "Usage : tool/qa.sh integration ID_TELEPHONE" >&2
       exit 2
     fi
-    "$FLUTTER_BIN" test integration_test/app_smoke_test.dart -d "$2"
+    "$FLUTTER_BIN" test integration_test/app_full_test.dart -d "$2"
     ;;
   apk)
     build_apk

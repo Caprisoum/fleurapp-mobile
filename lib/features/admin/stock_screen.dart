@@ -24,7 +24,8 @@ class StockScreen extends StatelessWidget {
       await appController.pos.loadProducts();
       if (context.mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(success)));
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(success)));
       }
     } on ApiException catch (error) {
       if (error.isUnauthorized) await appController.handleUnauthorized();

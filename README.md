@@ -239,18 +239,33 @@ La configuration actuelle utilise la clé de développement pour le build de
 test. Créez une clé de signature privée et protégez-la hors Git avant toute
 publication Play Store.
 
-### Test d’intégration sur un vrai Android
+### Tests fonctionnels complets sur un vrai Android
 
-Le scénario `integration_test/app_smoke_test.dart` démarre l’application réelle,
-ajoute une rose au panier, vérifie le montant en centimes, encaisse et contrôle
-la présence de la clé d’idempotence. Il utilise un serveur HTTP simulé et ne
-touche donc ni Render ni la base de production.
+La suite `integration_test/app_full_test.dart` démarre l’APK réel et exécute six
+parcours sur le téléphone :
+
+- panne du catalogue, message utilisateur et reprise avec « Réessayer » ;
+- recherche, panier, paiement, conflit de stock 409 et clé d’idempotence ;
+- PIN administrateur erroné puis valide, JWT, import CSV, catégories et produit ;
+- réception, perte, historiques de stock et écran BOM ;
+- clients, Ticket Z, FEC, traitement d’un bug et alertes J-1 ;
+- test de santé du backend, thèmes clair/sombre, rapport de bug et déconnexion.
+
+Un backend HTTP complet mais simulé répond à l’APK. Les scénarios contrôlent les
+corps JSON et headers réellement émis sans toucher Render ni la base de
+production. L’import via le sélecteur de fichiers Android, le paiement NFC et le
+matériel Bluetooth restent des recettes matérielles manuelles tant que leurs SDK
+ne sont pas connectés.
 
 ```bash
 adb devices
 flutter devices
 ./tool/qa.sh integration ID_DU_TELEPHONE
 ```
+
+Sur HyperOS, gardez le téléphone déverrouillé et acceptez « Installer via USB ».
+Une annulation produit `INSTALL_FAILED_USER_RESTRICTED` et il suffit alors de
+relancer la même commande.
 
 La commande locale complète (tests, Semgrep et APK debug) est :
 
