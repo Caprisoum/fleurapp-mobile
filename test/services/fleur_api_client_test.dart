@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fleurapp_mobile/models/cart_item.dart';
+import 'package:fleurapp_mobile/models/catalog_import.dart';
 import 'package:fleurapp_mobile/models/bug_report.dart';
 import 'package:fleurapp_mobile/models/payment_method.dart';
 import 'package:fleurapp_mobile/models/product.dart';
@@ -89,6 +90,62 @@ void main() {
     )..updateAdminToken('jwt-secret-test');
     await api.fetchCustomers();
     expect(sentRequest.headers['Authorization'], 'Bearer jwt-secret-test');
+    api.close();
+  });
+
+  test('prévisualise puis importe un CSV avec JWT et idempotence', () async {
+    final requests = <http.Request>[];
+    final api = RenderApiClient(
+      baseUrl: 'https://fleurapp-test.onrender.com',
+      httpClient: MockClient((request) async {
+        requests.add(request);
+        if (request.url.path.endsWith('/preview')) {
+          return _jsonResponse({
+            'summary': {'create': 1, 'update': 0, 'skip': 0, 'error': 0},
+            'categoriesToCreate': ['Fleurs'],
+            'rows': [
+              {
+                'row': 2,
+                'status': 'create',
+                'name': 'Rose',
+                'category': 'Fleurs',
+                'price': '2.50',
+              }
+            ],
+          });
+        }
+        return _jsonResponse({
+          'success': true,
+          'created': 1,
+          'updated': 0,
+          'skipped': 0,
+        }, statusCode: 201);
+      }),
+    )..updateAdminToken('jwt-import');
+    const rows = [
+      CatalogImportRow({
+        'nom': 'Rose',
+        'categorie': 'Fleurs',
+        'prix_ttc': '2,50',
+        'taux_tva': '20',
+        'stock_actuel': '10',
+      })
+    ];
+
+    final preview =
+        await api.previewCatalogImport(rows, CatalogDuplicateMode.skip);
+    final result = await api.importCatalog(
+      rows,
+      CatalogDuplicateMode.skip,
+      'catalog_mobile_0123456789abcdef',
+    );
+
+    expect(preview.canImport, isTrue);
+    expect(result.created, 1);
+    expect(requests.first.headers['Authorization'], 'Bearer jwt-import');
+    expect(requests.last.headers['Idempotency-Key'],
+        'catalog_mobile_0123456789abcdef');
+    expect(requests.last.url.path, '/api/admin/catalogue/import');
     api.close();
   });
 

@@ -157,6 +157,18 @@ HTTPS du tunnel, testez-la puis enregistrez-la. Le client ajoute le header de
 contournement de la page d’avertissement localtunnel ; aucun secret n’est placé
 dans l’APK.
 
+## Import CSV du catalogue
+
+Après connexion administrateur, ouvrez **Catalogue** puis touchez l’icône de
+fichier dans l’en-tête. L’application accepte un CSV FleurApp de 32 Kio et
+100 produits maximum, affiche les créations, mises à jour, doublons et erreurs,
+puis demande une confirmation avant toute écriture.
+
+Le modèle CSV se télécharge depuis l’administration Web. Il est compatible avec
+LibreOffice Calc et contient les colonnes de prix, TVA, stock, catégorie,
+conditionnement et fraîcheur. Une relance réseau conserve la même clé
+d’idempotence afin d’éviter les doubles imports.
+
 ## Rappels d’arrivages et de commandes
 
 Après connexion avec le PIN administrateur, touchez la cloche en haut de

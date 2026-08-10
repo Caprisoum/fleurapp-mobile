@@ -7,6 +7,7 @@ import '../core/money.dart';
 import '../models/admin_models.dart';
 import '../models/bug_report.dart';
 import '../models/cart_item.dart';
+import '../models/catalog_import.dart';
 import '../models/order_receipt.dart';
 import '../models/payment_method.dart';
 import '../models/product.dart';
@@ -40,6 +41,15 @@ abstract class AdminApiClient {
   Future<void> createProduct(ProductDraft product);
   Future<void> updateProduct(int id, ProductDraft product);
   Future<void> deleteProduct(int id);
+  Future<CatalogImportPreview> previewCatalogImport(
+    List<CatalogImportRow> rows,
+    CatalogDuplicateMode duplicateMode,
+  );
+  Future<CatalogImportResult> importCatalog(
+    List<CatalogImportRow> rows,
+    CatalogDuplicateMode duplicateMode,
+    String idempotencyKey,
+  );
   Future<Product> applyAntiWasteDiscount(int productId, {int percentage = 30});
   Future<List<StockReception>> fetchStockReceptions();
   Future<void> receiveStock(Product product, int quantity);
@@ -258,6 +268,43 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
   @override
   Future<void> deleteProduct(int id) =>
       _sendVoid('DELETE', '/api/produits/$id', admin: true);
+
+  @override
+  Future<CatalogImportPreview> previewCatalogImport(
+    List<CatalogImportRow> rows,
+    CatalogDuplicateMode duplicateMode,
+  ) async {
+    final payload = await _sendJson(
+      'POST',
+      '/api/admin/catalogue/import/preview',
+      body: {
+        'rows': rows.map((row) => row.toJson()).toList(growable: false),
+        'duplicate_mode': duplicateMode.apiValue,
+      },
+      admin: true,
+    );
+    return CatalogImportPreview.fromJson(payload);
+  }
+
+  @override
+  Future<CatalogImportResult> importCatalog(
+    List<CatalogImportRow> rows,
+    CatalogDuplicateMode duplicateMode,
+    String idempotencyKey,
+  ) async {
+    final payload = await _sendJson(
+      'POST',
+      '/api/admin/catalogue/import',
+      body: {
+        'rows': rows.map((row) => row.toJson()).toList(growable: false),
+        'duplicate_mode': duplicateMode.apiValue,
+      },
+      admin: true,
+      extraHeaders: {'Idempotency-Key': idempotencyKey},
+      acceptedStatusCodes: const {201},
+    );
+    return CatalogImportResult.fromJson(payload);
+  }
 
   @override
   Future<Product> applyAntiWasteDiscount(

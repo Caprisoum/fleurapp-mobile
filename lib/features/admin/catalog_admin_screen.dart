@@ -1,9 +1,14 @@
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/formatters.dart';
 import '../../core/money.dart';
 import '../../models/admin_models.dart';
+import '../../models/catalog_import.dart';
 import '../../models/product.dart';
 import '../../services/api_exception.dart';
 import '../../state/admin_controller.dart';
@@ -90,6 +95,21 @@ class _CatalogAdminScreenState extends State<CatalogAdminScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _importCatalog() async {
+    final result = await CatalogImportDialog.show(
+      context,
+      widget.appController.admin,
+    );
+    if (result == null || !mounted) return;
+    await widget.appController.pos.loadProducts();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(
+        '${result.created} produit(s) créé(s), ${result.updated} mis à jour et ${result.skipped} conservé(s).',
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final admin = widget.appController.admin;
@@ -134,11 +154,23 @@ class _CatalogAdminScreenState extends State<CatalogAdminScreen> {
                                         ?.copyWith(fontWeight: FontWeight.w800),
                                   ),
                                 ),
-                                OutlinedButton.icon(
-                                  onPressed:
-                                      admin.busy ? null : _manageCategories,
-                                  icon: const Icon(Icons.category_outlined),
-                                  label: const Text('Catégories'),
+                                Wrap(
+                                  spacing: 6,
+                                  children: [
+                                    IconButton.filledTonal(
+                                      onPressed:
+                                          admin.busy ? null : _importCatalog,
+                                      tooltip: 'Importer un catalogue CSV',
+                                      icon:
+                                          const Icon(Icons.upload_file_rounded),
+                                    ),
+                                    OutlinedButton.icon(
+                                      onPressed:
+                                          admin.busy ? null : _manageCategories,
+                                      icon: const Icon(Icons.category_outlined),
+                                      label: const Text('Catégories'),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -240,6 +272,236 @@ class _CatalogAdminScreenState extends State<CatalogAdminScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class CatalogImportDialog extends StatefulWidget {
+  const CatalogImportDialog({required this.adminController, super.key});
+
+  final AdminController adminController;
+
+  static Future<CatalogImportResult?> show(
+    BuildContext context,
+    AdminController adminController,
+  ) =>
+      showDialog<CatalogImportResult>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => CatalogImportDialog(adminController: adminController),
+      );
+
+  @override
+  State<CatalogImportDialog> createState() => _CatalogImportDialogState();
+}
+
+class _CatalogImportDialogState extends State<CatalogImportDialog> {
+  CatalogDuplicateMode _duplicateMode = CatalogDuplicateMode.skip;
+  List<CatalogImportRow> _rows = const [];
+  CatalogImportPreview? _preview;
+  String? _fileName;
+  String? _error;
+  String? _idempotencyKey;
+  bool _busy = false;
+
+  Future<void> _pickFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['csv'],
+        allowMultiple: false,
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.single;
+      final bytes = file.bytes;
+      if (bytes == null) {
+        throw const FormatException('Le téléphone n’a pas pu lire ce fichier.');
+      }
+      final rows = CatalogCsvParser.parse(bytes);
+      setState(() {
+        _rows = rows;
+        _fileName = file.name;
+        _preview = null;
+        _error = null;
+        _idempotencyKey = null;
+      });
+      await _loadPreview();
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (error) {
+      if (mounted) showApiError(context, error);
+    }
+  }
+
+  Future<void> _loadPreview() async {
+    if (_rows.isEmpty) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+      _preview = null;
+      _idempotencyKey = null;
+    });
+    try {
+      final preview = await widget.adminController
+          .previewCatalogImport(_rows, _duplicateMode);
+      if (mounted) setState(() => _preview = preview);
+    } on ApiException catch (error) {
+      if (error.isUnauthorized) {
+        if (mounted) Navigator.pop(context);
+      } else if (mounted) {
+        setState(() => _error = error.message);
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = 'Impossible de valider le fichier.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  String _newIdempotencyKey() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(24, (_) => random.nextInt(256));
+    return base64UrlEncode(bytes).replaceAll('=', '');
+  }
+
+  Future<void> _commit() async {
+    if (_preview?.canImport != true) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+      _idempotencyKey ??= _newIdempotencyKey();
+    });
+    try {
+      final result = await widget.adminController.importCatalog(
+        _rows,
+        _duplicateMode,
+        _idempotencyKey!,
+      );
+      if (mounted) Navigator.pop(context, result);
+    } on ApiException catch (error) {
+      if (error.isUnauthorized) {
+        if (mounted) Navigator.pop(context);
+      } else if (mounted) {
+        setState(() => _error = error.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error =
+            'Connexion interrompue. Vous pouvez relancer sans créer de doublon.');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = _preview;
+    return AlertDialog(
+      title: const Text('Importer un catalogue CSV'),
+      content: SizedBox(
+        width: 620,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Utilisez le modèle téléchargé depuis l’administration Web. Prix, TVA, stocks, unités et dates seront vérifiés avant l’import.',
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _pickFile,
+                icon: const Icon(Icons.folder_open_rounded),
+                label: Text(_fileName ?? 'Choisir un fichier CSV'),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<CatalogDuplicateMode>(
+                value: _duplicateMode,
+                decoration:
+                    const InputDecoration(labelText: 'Produits existants'),
+                items: CatalogDuplicateMode.values
+                    .map((mode) => DropdownMenuItem(
+                          value: mode,
+                          child: Text(mode.label),
+                        ))
+                    .toList(growable: false),
+                onChanged: _busy
+                    ? null
+                    : (mode) {
+                        if (mode == null || mode == _duplicateMode) return;
+                        setState(() => _duplicateMode = mode);
+                        _loadPreview();
+                      },
+              ),
+              if (_busy) ...[
+                const SizedBox(height: 14),
+                const LinearProgressIndicator(),
+              ],
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(_error!,
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error)),
+              ],
+              if (preview != null) ...[
+                const SizedBox(height: 14),
+                Text(
+                  '${preview.created} à créer · ${preview.updated} à mettre à jour · ${preview.skipped} conservé(s) · ${preview.errors} erreur(s)',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                if (preview.categoriesToCreate.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                      'Catégories à créer : ${preview.categoriesToCreate.join(', ')}'),
+                ],
+                const SizedBox(height: 10),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 260),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: preview.rows.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (_, index) {
+                      final row = preview.rows[index];
+                      final invalid = row.status == 'error';
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          radius: 16,
+                          child: Text('${row.row}'),
+                        ),
+                        title: Text(row.name ?? row.error ?? 'Ligne invalide'),
+                        subtitle: Text(row.category ?? 'Sans catégorie'),
+                        trailing: Icon(
+                          invalid
+                              ? Icons.error_outline
+                              : Icons.check_circle_outline,
+                          color: invalid
+                              ? Theme.of(context).colorScheme.error
+                              : Theme.of(context).colorScheme.primary,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+        FilledButton(
+          onPressed: _busy || preview?.canImport != true ? null : _commit,
+          child: const Text('Confirmer l’import'),
+        ),
+      ],
     );
   }
 }

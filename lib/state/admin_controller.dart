@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/admin_models.dart';
 import '../models/bug_report.dart';
+import '../models/catalog_import.dart';
 import '../models/product.dart';
 import '../services/api_exception.dart';
 import '../services/fleur_api_client.dart';
@@ -96,6 +97,26 @@ class AdminController extends ChangeNotifier {
   Future<void> deleteProduct(Product product) async {
     await _action(() => _apiClient.deleteProduct(product.id));
     await refreshCatalog();
+  }
+
+  Future<CatalogImportPreview> previewCatalogImport(
+    List<CatalogImportRow> rows,
+    CatalogDuplicateMode duplicateMode,
+  ) =>
+      _apiClient.previewCatalogImport(rows, duplicateMode);
+
+  Future<CatalogImportResult> importCatalog(
+    List<CatalogImportRow> rows,
+    CatalogDuplicateMode duplicateMode,
+    String idempotencyKey,
+  ) async {
+    late CatalogImportResult result;
+    await _action(() async {
+      result =
+          await _apiClient.importCatalog(rows, duplicateMode, idempotencyKey);
+    });
+    await refreshCatalog();
+    return result;
   }
 
   Future<void> applyAntiWaste(Product product) async {
