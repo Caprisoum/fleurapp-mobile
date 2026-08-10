@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:fleurapp_mobile/app.dart';
+import 'package:fleurapp_mobile/models/payment_method.dart';
 import 'package:fleurapp_mobile/services/admin_token_store.dart';
 import 'package:fleurapp_mobile/services/fleur_api_client.dart';
 import 'package:fleurapp_mobile/services/local_settings_store.dart';
@@ -98,7 +99,7 @@ void main() {
     expect(body['cartItems'], [
       {'id': 1, 'quantity': 1}
     ]);
-    expect(body['mode_paiement'], 'Carte Bancaire');
+    expect(body['mode_paiement'], PaymentMethod.card.apiValue);
     expect(productLoads, 2);
     expect(tester.takeException(), isNull);
   });
