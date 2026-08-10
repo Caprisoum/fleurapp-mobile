@@ -209,7 +209,7 @@ identifiant unique.
 ## 5. Qualité et APK de test
 
 ```bash
-dart format --output=none --set-exit-if-changed lib test
+dart format --output=none --set-exit-if-changed lib test integration_test
 flutter analyze
 flutter test
 flutter build apk --release --no-pub \
@@ -238,6 +238,25 @@ flutter build apk --release --split-per-abi --no-pub \
 La configuration actuelle utilise la clé de développement pour le build de
 test. Créez une clé de signature privée et protégez-la hors Git avant toute
 publication Play Store.
+
+### Test d’intégration sur un vrai Android
+
+Le scénario `integration_test/app_smoke_test.dart` démarre l’application réelle,
+ajoute une rose au panier, vérifie le montant en centimes, encaisse et contrôle
+la présence de la clé d’idempotence. Il utilise un serveur HTTP simulé et ne
+touche donc ni Render ni la base de production.
+
+```bash
+adb devices
+flutter devices
+./tool/qa.sh integration ID_DU_TELEPHONE
+```
+
+La commande locale complète (tests, Semgrep et APK debug) est :
+
+```bash
+./tool/qa.sh all
+```
 
 ## iOS
 
