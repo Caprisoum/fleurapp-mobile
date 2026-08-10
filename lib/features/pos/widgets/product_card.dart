@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/formatters.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../models/product.dart';
 
 class ProductCard extends StatelessWidget {
-  const ProductCard({required this.product, required this.onTap, super.key});
+  const ProductCard({
+    required this.product,
+    required this.onTap,
+    this.actions,
+    super.key,
+  });
 
   final Product product;
   final VoidCallback onTap;
+  final Widget? actions;
 
   @override
   Widget build(BuildContext context) {
@@ -31,12 +36,12 @@ class ProductCard extends StatelessWidget {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE5F0EB),
+                        color: colors.primaryContainer,
                         borderRadius: BorderRadius.circular(13),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.local_florist_rounded,
-                        color: AppTheme.forest,
+                        color: colors.onPrimaryContainer,
                       ),
                     ),
                     const Spacer(),
@@ -57,6 +62,9 @@ class ProductCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                    if (product.discountBasisPoints > 0 && actions != null)
+                      const SizedBox(width: 2),
+                    if (actions != null) actions!,
                   ],
                 ),
                 const Spacer(),
@@ -64,8 +72,8 @@ class ProductCard extends StatelessWidget {
                   product.category.toUpperCase(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.black45,
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.7,
@@ -93,8 +101,14 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                     if (available)
-                      const Icon(Icons.add_circle_rounded,
-                          color: AppTheme.coral, size: 28),
+                      Tooltip(
+                        message: 'Ajouter au panier',
+                        child: Icon(
+                          Icons.add_shopping_cart_rounded,
+                          color: colors.secondary,
+                          size: 28,
+                        ),
+                      ),
                   ],
                 ),
               ],

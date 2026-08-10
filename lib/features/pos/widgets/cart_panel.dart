@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/formatters.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../models/cart_item.dart';
 import '../../../state/pos_controller.dart';
 
@@ -17,6 +16,7 @@ class CartPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -29,11 +29,13 @@ class CartPanel extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE5F0EB),
+                    color: colors.primaryContainer,
                     borderRadius: BorderRadius.circular(13),
                   ),
-                  child: const Icon(Icons.shopping_bag_outlined,
-                      color: AppTheme.forest),
+                  child: Icon(
+                    Icons.shopping_bag_outlined,
+                    color: colors.onPrimaryContainer,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -48,8 +50,10 @@ class CartPanel extends StatelessWidget {
                       ),
                       Text(
                         '${controller.cartQuantity} article${controller.cartQuantity > 1 ? 's' : ''}',
-                        style: const TextStyle(
-                            color: Colors.black54, fontSize: 12),
+                        style: TextStyle(
+                          color: colors.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -86,8 +90,8 @@ class CartPanel extends StatelessWidget {
                         TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                 Text(
                   formatEuro(controller.cartTotalCents),
-                  style: const TextStyle(
-                    color: AppTheme.forest,
+                  style: TextStyle(
+                    color: colors.primary,
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
                     letterSpacing: -0.7,
@@ -131,6 +135,7 @@ class _CartLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
@@ -149,7 +154,10 @@ class _CartLine extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '${formatEuro(item.product.priceCents)} × ${item.quantity}',
-                  style: const TextStyle(color: Colors.black54, fontSize: 12),
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 9),
                 Row(
@@ -218,18 +226,25 @@ class _EmptyCart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final colors = Theme.of(context).colorScheme;
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.shopping_bag_outlined, size: 48, color: Colors.black26),
-          SizedBox(height: 12),
-          Text('Votre panier est vide',
-              style: TextStyle(fontWeight: FontWeight.w700)),
-          SizedBox(height: 5),
+          Icon(
+            Icons.shopping_bag_outlined,
+            size: 48,
+            color: colors.outline,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Votre panier est vide',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 5),
           Text(
             'Touchez un produit pour l’ajouter.',
-            style: TextStyle(color: Colors.black45, fontSize: 12),
+            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
           ),
         ],
       ),

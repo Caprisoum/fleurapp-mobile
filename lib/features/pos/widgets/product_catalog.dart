@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_theme.dart';
 import '../../../models/product.dart';
 import '../../../state/pos_controller.dart';
 import 'product_card.dart';
@@ -41,6 +40,8 @@ class _ProductCatalogState extends State<ProductCatalog> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     if (widget.controller.catalogStatus == CatalogStatus.loading &&
         widget.controller.products.isEmpty) {
       return const Center(child: CircularProgressIndicator());
@@ -73,7 +74,7 @@ class _ProductCatalogState extends State<ProductCatalog> {
             Text(
               '${products.length} produit${products.length > 1 ? 's' : ''}',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.black54,
+                    color: colors.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
                   ),
             ),
@@ -153,57 +154,51 @@ class _ProductCatalogState extends State<ProductCatalog> {
                   itemCount: products.length,
                   itemBuilder: (context, index) {
                     final product = products[index];
-                    return Stack(
-                      children: [
-                        Positioned.fill(
-                          child: ProductCard(
-                            product: product,
-                            onTap: () {
-                              final added =
-                                  widget.controller.addProduct(product);
-                              if (!added) {
-                                ScaffoldMessenger.of(context)
-                                  ..hideCurrentSnackBar()
-                                  ..showSnackBar(
-                                    const SnackBar(
-                                      content:
-                                          Text('Stock disponible insuffisant.'),
-                                    ),
-                                  );
-                              }
-                            },
-                          ),
-                        ),
-                        if (widget.onDeclareWaste != null ||
-                            product.canApplyAntiWaste)
-                          Positioned(
-                            right: 4,
-                            bottom: 4,
-                            child: PopupMenuButton<String>(
+                    final canDeclareWaste = widget.onDeclareWaste != null;
+                    final canApplyAntiWaste = product.canApplyAntiWaste &&
+                        widget.onApplyAntiWaste != null;
+                    return ProductCard(
+                      product: product,
+                      onTap: () {
+                        final added = widget.controller.addProduct(product);
+                        if (!added) {
+                          ScaffoldMessenger.of(context)
+                            ..hideCurrentSnackBar()
+                            ..showSnackBar(
+                              const SnackBar(
+                                content: Text('Stock disponible insuffisant.'),
+                              ),
+                            );
+                        }
+                      },
+                      actions: canDeclareWaste || canApplyAntiWaste
+                          ? PopupMenuButton<String>(
                               tooltip: 'Actions produit',
+                              icon: Icon(
+                                Icons.more_horiz_rounded,
+                                color: colors.onSurfaceVariant,
+                              ),
                               onSelected: (action) {
                                 if (action == 'waste') {
                                   widget.onDeclareWaste?.call(product);
-                                } else {
+                                } else if (action == 'discount') {
                                   widget.onApplyAntiWaste?.call(product);
                                 }
                               },
                               itemBuilder: (_) => [
-                                if (widget.onDeclareWaste != null)
+                                if (canDeclareWaste)
                                   const PopupMenuItem(
                                     value: 'waste',
                                     child: Text('Déclarer une perte'),
                                   ),
-                                if (product.canApplyAntiWaste &&
-                                    widget.onApplyAntiWaste != null)
+                                if (canApplyAntiWaste)
                                   const PopupMenuItem(
                                     value: 'discount',
                                     child: Text('Appliquer −30 %'),
                                   ),
                               ],
-                            ),
-                          ),
-                      ],
+                            )
+                          : null,
                     );
                   },
                 ),
@@ -226,16 +221,17 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return ChoiceChip(
       label: Text(label),
       selected: selected,
       onSelected: (_) => onSelected(),
-      selectedColor: AppTheme.forest,
-      backgroundColor: Colors.white,
-      side: BorderSide(
-          color: selected ? AppTheme.forest : const Color(0xFFDFE7E3)),
+      selectedColor: colors.primaryContainer,
+      backgroundColor: colors.surfaceContainerHighest,
+      side:
+          BorderSide(color: selected ? colors.primary : colors.outlineVariant),
       labelStyle: TextStyle(
-        color: selected ? Colors.white : Colors.black87,
+        color: selected ? colors.onPrimaryContainer : colors.onSurface,
         fontWeight: FontWeight.w700,
       ),
       showCheckmark: false,
@@ -308,13 +304,21 @@ class _EmptySearch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final colors = Theme.of(context).colorScheme;
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.search_off_rounded, size: 42, color: Colors.black38),
-          SizedBox(height: 10),
-          Text('Aucun produit ne correspond à votre recherche.'),
+          Icon(
+            Icons.search_off_rounded,
+            size: 42,
+            color: colors.outline,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Aucun produit ne correspond à votre recherche.',
+            style: TextStyle(color: colors.onSurfaceVariant),
+          ),
         ],
       ),
     );

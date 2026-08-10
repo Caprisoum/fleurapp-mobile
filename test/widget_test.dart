@@ -37,7 +37,7 @@ void main() {
     );
     final controller = AppController(
       apiClient: api,
-      settingsStore: _MemorySettingsStore(),
+      settingsStore: const _MemorySettingsStore(),
       tokenStore: _MemoryTokenStore(),
     );
     addTearDown(controller.dispose);
@@ -59,6 +59,66 @@ void main() {
     expect(find.text('Commande en cours'), findsOneWidget);
     expect(find.text('25,00\u00a0€'), findsAtLeastNWidgets(2));
     expect(find.text('Encaisser'), findsOneWidget);
+  });
+
+  testWidgets('catalogue lisible sans actions superposées en mode sombre',
+      (tester) async {
+    tester.view.physicalSize = const Size(393, 873);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final api = RenderApiClient(
+      baseUrl: '',
+      httpClient: MockClient((request) async => http.Response(
+            jsonEncode([
+              {
+                'id': 1,
+                'name': 'Rose rouge',
+                'price_ttc': '4.00',
+                'vat_rate': '20.00',
+                'category_name': 'Sans catégorie',
+                'stock_actuel': 4,
+              },
+              {
+                'id': 2,
+                'name': 'Bouquet surprise',
+                'price_ttc': '100.00',
+                'vat_rate': '20.00',
+                'category_name': 'Sans catégorie',
+                'stock_actuel': 2,
+              },
+            ]),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          )),
+    );
+    final controller = AppController(
+      apiClient: api,
+      settingsStore: const _MemorySettingsStore(ThemeMode.dark),
+      tokenStore: _MemoryTokenStore('jwt-test'),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+    await tester.pumpWidget(FleurApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    final productCount = tester.widget<Text>(find.text('2 produits'));
+    final countContext = tester.element(find.text('2 produits'));
+    expect(
+      productCount.style?.color,
+      Theme.of(countContext).colorScheme.onSurfaceVariant,
+    );
+    expect(find.byIcon(Icons.add_shopping_cart_rounded), findsNWidgets(2));
+    expect(find.byIcon(Icons.more_horiz_rounded), findsNWidgets(2));
+    expect(find.byIcon(Icons.add_circle_rounded), findsNothing);
+    expect(
+      tester.getCenter(find.byIcon(Icons.more_horiz_rounded).first).dy,
+      lessThan(
+        tester.getCenter(find.byIcon(Icons.add_shopping_cart_rounded).first).dy,
+      ),
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('navigue sans overflow sur les modules Poco F7', (tester) async {
@@ -120,7 +180,7 @@ void main() {
     );
     final controller = AppController(
       apiClient: api,
-      settingsStore: _MemorySettingsStore(),
+      settingsStore: const _MemorySettingsStore(),
       tokenStore: _MemoryTokenStore('jwt-test'),
     );
     addTearDown(controller.dispose);
@@ -206,7 +266,7 @@ void main() {
     );
     final controller = AppController(
       apiClient: api,
-      settingsStore: _MemorySettingsStore(),
+      settingsStore: const _MemorySettingsStore(),
       tokenStore: _MemoryTokenStore(),
     );
     addTearDown(controller.dispose);
@@ -242,10 +302,14 @@ void main() {
 }
 
 class _MemorySettingsStore implements LocalSettingsStore {
+  const _MemorySettingsStore([this.themeMode = ThemeMode.light]);
+
+  final ThemeMode themeMode;
+
   @override
-  Future<LocalSettings> read() async => const LocalSettings(
+  Future<LocalSettings> read() async => LocalSettings(
         apiBaseUrl: 'https://fleurapp-test.onrender.com',
-        themeMode: ThemeMode.light,
+        themeMode: themeMode,
       );
 
   @override
