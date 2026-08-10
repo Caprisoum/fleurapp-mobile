@@ -8,6 +8,7 @@ import 'package:fleurapp_mobile/app.dart';
 import 'package:fleurapp_mobile/models/bug_report.dart';
 import 'package:fleurapp_mobile/models/payment_method.dart';
 import 'package:fleurapp_mobile/services/fleur_api_client.dart';
+import 'package:fleurapp_mobile/services/checkout_device_token_store.dart';
 import 'package:fleurapp_mobile/state/app_controller.dart';
 
 import 'support/fake_fleur_backend.dart';
@@ -79,6 +80,10 @@ void main() {
       final successful = harness.backend.orderRequests.last;
       expect(_header(successful.headers, 'idempotency-key'),
           startsWith('mobile_'));
+      expect(
+        _header(successful.headers, 'x-checkout-token'),
+        FakeFleurBackend.checkoutToken,
+      );
       final body = jsonDecode(successful.body) as Map<String, dynamic>;
       expect(body['cartItems'], [
         {'id': 1, 'quantity': 1}
@@ -263,7 +268,11 @@ void main() {
 
     testWidgets('réglages : santé API, thèmes, rapport de bug et déconnexion',
         (tester) async {
-      final harness = await _launch(tester, authenticated: true);
+      final harness = await _launch(
+        tester,
+        authenticated: true,
+        checkoutActive: false,
+      );
       await _openDestination(tester, Icons.settings_outlined);
 
       await tester.tap(find.text('Tester'));
@@ -272,6 +281,16 @@ void main() {
         find.text('Backend joignable et base PostgreSQL disponible.'),
         findsOneWidget,
       );
+
+      await tester.ensureVisible(find.byKey(const Key('checkout-device-card')));
+      await tester.tap(find.text('Activer'));
+      await tester.pumpAndSettle();
+      expect(find.text('Caisse activée'), findsOneWidget);
+      expect(harness.controller.checkoutDeviceActive, isTrue);
+      final activation = harness.backend.requests.lastWhere(
+        (request) => request.url.path == '/api/admin/devices',
+      );
+      expect(_header(activation.headers, 'authorization'), 'Bearer test-jwt');
 
       await tester.ensureVisible(find.byKey(const Key('theme-mode-selector')));
       await tester.tap(find.text('Sombre'));
@@ -332,6 +351,7 @@ Future<_Harness> _launch(
   bool authenticated = false,
   int? orderFailure,
   int productFailures = 0,
+  bool checkoutActive = true,
 }) async {
   final backend = FakeFleurBackend(
     orderFailure: orderFailure,
@@ -340,6 +360,9 @@ Future<_Harness> _launch(
   final settings = MemorySettingsStore();
   final tokens = MemoryTokenStore(authenticated ? 'test-jwt' : null);
   final scheduler = FakeAlertScheduler();
+  final checkoutTokens = EphemeralCheckoutDeviceTokenStore(
+    checkoutActive ? FakeFleurBackend.checkoutToken : null,
+  );
   final controller = AppController(
     apiClient: RenderApiClient(
       baseUrl: 'https://fleurapp-qa.invalid',
@@ -348,6 +371,7 @@ Future<_Harness> _launch(
     ),
     settingsStore: settings,
     tokenStore: tokens,
+    checkoutTokenStore: checkoutTokens,
     alertScheduler: scheduler,
     deviceMetadataService: const FakeDeviceMetadataService(),
   );

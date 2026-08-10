@@ -1,0 +1,4 @@
+storePassword=REMPLACER_PAR_UN_MOT_DE_PASSE_LONG
+keyPassword=REMPLACER_PAR_UN_MOT_DE_PASSE_LONG
+keyAlias=fleurapp-upload
+storeFile=/chemin/absolu/hors-du-depot/upload-keystore.jks

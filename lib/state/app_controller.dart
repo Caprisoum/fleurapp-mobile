@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/admin_token_store.dart';
+import '../services/checkout_device_token_store.dart';
 import '../services/api_exception.dart';
 import '../services/device_metadata_service.dart';
 import '../services/fleur_api_client.dart';
@@ -16,12 +17,15 @@ class AppController extends ChangeNotifier {
     required RenderApiClient apiClient,
     required LocalSettingsStore settingsStore,
     required AdminTokenStore tokenStore,
+    CheckoutDeviceTokenStore? checkoutTokenStore,
     LocalAlertScheduler alertScheduler = const NoopLocalAlertScheduler(),
     DeviceMetadataService deviceMetadataService =
         const FallbackDeviceMetadataService(),
   })  : _apiClient = apiClient,
         _settingsStore = settingsStore,
         _tokenStore = tokenStore,
+        _checkoutTokenStore =
+            checkoutTokenStore ?? EphemeralCheckoutDeviceTokenStore(),
         _deviceMetadataService = deviceMetadataService,
         pos = PosController(apiClient: apiClient),
         admin = AdminController(apiClient: apiClient),
@@ -33,6 +37,7 @@ class AppController extends ChangeNotifier {
   final RenderApiClient _apiClient;
   final LocalSettingsStore _settingsStore;
   final AdminTokenStore _tokenStore;
+  final CheckoutDeviceTokenStore _checkoutTokenStore;
   final DeviceMetadataService _deviceMetadataService;
   final PosController pos;
   final AdminController admin;
@@ -42,12 +47,15 @@ class AppController extends ChangeNotifier {
   bool _initialized = false;
   bool _adminAuthenticated = false;
   bool _authBusy = false;
+  bool _checkoutDeviceBusy = false;
   bool _disposed = false;
 
   ThemeMode get themeMode => _themeMode;
   bool get initialized => _initialized;
   bool get adminAuthenticated => _adminAuthenticated;
   bool get authBusy => _authBusy;
+  bool get checkoutDeviceBusy => _checkoutDeviceBusy;
+  bool get checkoutDeviceActive => _apiClient.hasCheckoutToken;
   String get apiBaseUrl => _apiClient.baseUrl;
 
   Future<void> initialize({bool loadCatalog = true}) async {
@@ -55,6 +63,22 @@ class AppController extends ChangeNotifier {
     final settings = await _settingsStore.read();
     _themeMode = settings.themeMode;
     _apiClient.updateBaseUrl(settings.apiBaseUrl);
+    final checkoutToken = await _checkoutTokenStore.read();
+    if (checkoutToken != null && checkoutToken.isNotEmpty) {
+      _apiClient.updateCheckoutToken(checkoutToken);
+      if (settings.apiBaseUrl.isNotEmpty) {
+        try {
+          await _apiClient.checkCheckoutDevice();
+        } on ApiException catch (error) {
+          if (error.isUnauthorized) {
+            await _checkoutTokenStore.delete();
+            _apiClient.updateCheckoutToken(null);
+          }
+        } catch (_) {
+          // Une panne réseau ne doit pas supprimer une activation valide.
+        }
+      }
+    }
     final token = await _tokenStore.read();
     if (token != null && token.isNotEmpty) {
       _apiClient.updateAdminToken(token);
@@ -138,11 +162,67 @@ class AppController extends ChangeNotifier {
 
   Future<void> updateApiBaseUrl(String value) async {
     final normalized = RenderApiClient.normalizeBaseUrl(value);
+    if (_apiClient.hasCheckoutToken) {
+      try {
+        await _apiClient.revokeCheckoutDevice();
+      } catch (_) {
+        // L’ancien serveur peut être indisponible ; le jeton local est supprimé.
+      }
+      await _checkoutTokenStore.delete();
+      _apiClient.updateCheckoutToken(null);
+    }
     _apiClient.updateBaseUrl(normalized);
     await _settingsStore.writeApiBaseUrl(normalized);
     await logout();
     await pos.loadProducts();
     _notify();
+  }
+
+  Future<void> activateCheckoutDevice() async {
+    if (!_adminAuthenticated) {
+      throw const ApiException(
+        'Connectez-vous comme administrateur avant d’activer cette caisse.',
+        statusCode: 401,
+      );
+    }
+    if (_checkoutDeviceBusy) return;
+    _checkoutDeviceBusy = true;
+    _notify();
+    try {
+      final metadata = await _deviceMetadataService.load();
+      final rawName = '${metadata.model} · FleurApp ${metadata.appVersion}';
+      final name = rawName.length <= 80 ? rawName : rawName.substring(0, 80);
+      final token = await _apiClient.registerCheckoutDevice(name);
+      await _checkoutTokenStore.write(token);
+      _apiClient.updateCheckoutToken(token);
+    } on ApiException catch (error) {
+      if (error.isUnauthorized) await handleUnauthorized();
+      rethrow;
+    } finally {
+      _checkoutDeviceBusy = false;
+      _notify();
+    }
+  }
+
+  Future<void> deactivateCheckoutDevice() async {
+    if (!_apiClient.hasCheckoutToken || _checkoutDeviceBusy) return;
+    _checkoutDeviceBusy = true;
+    _notify();
+    try {
+      await _apiClient.revokeCheckoutDevice();
+      await _checkoutTokenStore.delete();
+      _apiClient.updateCheckoutToken(null);
+    } on ApiException catch (error) {
+      if (error.isUnauthorized) {
+        await _checkoutTokenStore.delete();
+        _apiClient.updateCheckoutToken(null);
+        return;
+      }
+      rethrow;
+    } finally {
+      _checkoutDeviceBusy = false;
+      _notify();
+    }
   }
 
   Future<void> checkHealth(String candidate) async {

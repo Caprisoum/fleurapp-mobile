@@ -76,14 +76,38 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
 
   String _baseUrl;
   String? _adminToken;
+  String? _checkoutToken;
   final http.Client _httpClient;
   final Duration timeout;
 
   String get baseUrl => _baseUrl;
   bool get hasAdminToken => _adminToken?.isNotEmpty == true;
+  bool get hasCheckoutToken => _checkoutToken?.isNotEmpty == true;
 
   void updateBaseUrl(String value) => _baseUrl = normalizeBaseUrl(value);
   void updateAdminToken(String? value) => _adminToken = value;
+  void updateCheckoutToken(String? value) => _checkoutToken = value;
+
+  Future<String> registerCheckoutDevice(String name) async {
+    final payload = await _sendJson(
+      'POST',
+      '/api/admin/devices',
+      body: {'nom': name},
+      admin: true,
+      acceptedStatusCodes: const {201},
+    );
+    final token = payload['token']?.toString();
+    if (token == null || !RegExp(r'^fdev_[A-Za-z0-9_-]{43}$').hasMatch(token)) {
+      throw const ApiException('Jeton d’activation de caisse invalide.');
+    }
+    return token;
+  }
+
+  Future<void> checkCheckoutDevice() =>
+      _sendVoid('GET', '/api/devices/me', checkout: true);
+
+  Future<void> revokeCheckoutDevice() =>
+      _sendVoid('DELETE', '/api/devices/me', checkout: true);
 
   @override
   Future<void> checkHealth() async {
@@ -225,6 +249,7 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
       '/api/commandes',
       body: body,
       extraHeaders: {'Idempotency-Key': idempotencyKey},
+      checkout: true,
       acceptedStatusCodes: const {200, 201},
       outcomeCouldBeUnknown: true,
     );
@@ -397,6 +422,7 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
     String path, {
     Map<String, dynamic>? body,
     bool admin = false,
+    bool checkout = false,
     Set<int> acceptedStatusCodes = const {200},
   }) async {
     await _sendJson(
@@ -404,6 +430,7 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
       path,
       body: body,
       admin: admin,
+      checkout: checkout,
       acceptedStatusCodes: acceptedStatusCodes,
     );
   }
@@ -413,12 +440,13 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
     String path, {
     Map<String, dynamic>? body,
     bool admin = false,
+    bool checkout = false,
     Map<String, String> extraHeaders = const {},
     Set<int> acceptedStatusCodes = const {200},
     bool outcomeCouldBeUnknown = false,
   }) async {
     final request = http.Request(method, _uri(path))
-      ..headers.addAll(_headers(admin: admin))
+      ..headers.addAll(_headers(admin: admin, checkout: checkout))
       ..headers.addAll(extraHeaders);
     if (body != null) request.body = jsonEncode(body);
     final response = await _request(
@@ -431,7 +459,7 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
     return Map<String, dynamic>.from(payload);
   }
 
-  Map<String, String> _headers({required bool admin}) {
+  Map<String, String> _headers({required bool admin, bool checkout = false}) {
     final headers = <String, String>{
       'Accept': 'application/json',
       'Content-Type': 'application/json; charset=UTF-8',
@@ -446,6 +474,12 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
         );
       }
       headers['Authorization'] = 'Bearer $token';
+    }
+    if (checkout) {
+      final token = _checkoutToken;
+      if (token != null && token.isNotEmpty) {
+        headers['X-Checkout-Token'] = token;
+      }
     }
     return headers;
   }

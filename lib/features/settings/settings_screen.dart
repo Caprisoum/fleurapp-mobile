@@ -88,6 +88,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _activateCheckoutDevice() async {
+    try {
+      await widget.appController.activateCheckoutDevice();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Téléphone activé pour les encaissements.'),
+          ),
+        );
+      }
+    } on ApiException catch (error) {
+      if (mounted) showApiError(context, error);
+    }
+  }
+
+  Future<void> _deactivateCheckoutDevice() async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Désactiver cette caisse ?'),
+            content: const Text(
+              'Ce téléphone ne pourra plus enregistrer de vente avant une nouvelle activation administrateur.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Annuler'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Désactiver'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+    try {
+      await widget.appController.deactivateCheckoutDevice();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Caisse désactivée.')),
+        );
+      }
+    } on ApiException catch (error) {
+      if (mounted) showApiError(context, error);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => ListView(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 40),
@@ -193,6 +242,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onPressed: widget.appController.logout,
                       child: const Text('Déconnexion'))
                   : null,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Card(
+            key: const Key('checkout-device-card'),
+            child: ListTile(
+              minVerticalPadding: 14,
+              leading: Icon(
+                widget.appController.checkoutDeviceActive
+                    ? Icons.point_of_sale_rounded
+                    : Icons.phonelink_lock_rounded,
+              ),
+              title: Text(
+                widget.appController.checkoutDeviceActive
+                    ? 'Caisse activée'
+                    : 'Caisse à activer',
+              ),
+              subtitle: Text(
+                widget.appController.checkoutDeviceActive
+                    ? 'Ce téléphone possède une identité révocable stockée de façon sécurisée.'
+                    : widget.appController.adminAuthenticated
+                        ? 'Activez ce téléphone avant de rendre l’authentification des ventes obligatoire.'
+                        : 'Connectez-vous d’abord comme administrateur pour autoriser ce téléphone.',
+              ),
+              trailing: widget.appController.checkoutDeviceBusy
+                  ? const SizedBox.square(
+                      dimension: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    )
+                  : widget.appController.checkoutDeviceActive
+                      ? OutlinedButton(
+                          onPressed: _deactivateCheckoutDevice,
+                          child: const Text('Désactiver'),
+                        )
+                      : FilledButton(
+                          onPressed: _activateCheckoutDevice,
+                          child: const Text('Activer'),
+                        ),
             ),
           ),
           const SizedBox(height: 10),

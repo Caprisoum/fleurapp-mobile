@@ -9,6 +9,8 @@ backend Express/PostgreSQL FleurApp déployé sur Render.
   stock, vente immédiate ou différée, client, acompte et moyens de paiement ;
 - encaissement idempotent : une clé `Idempotency-Key` est conservée après une
   coupure tant que la vente n’est pas modifiée ;
+- identité de caisse révocable : activation administrateur par téléphone,
+  jeton propre à l’appareil dans le Keystore Android et révocation distante ;
 - ticket : lignes et montants autoritatifs du serveur, acompte, reste, statut,
   empreinte et copie ;
 - administration JWT/PIN avec jeton dans le Keychain/Keystore via
@@ -120,6 +122,22 @@ Ne placez jamais `JWT_SECRET`, `ADMIN_PIN_HASH`, `DATABASE_URL` ou un autre
 secret serveur dans l’APK. Seul le JWT obtenu après saisie du PIN est stocké
 dans le stockage sécurisé du téléphone.
 
+### Activer ce téléphone pour encaisser
+
+Après installation du nouvel APK :
+
+1. ouvrez un module administrateur et connectez-vous avec le PIN ;
+2. ouvrez **Réglages** ;
+3. dans **Sécurité des encaissements**, touchez **Activer** ;
+4. vérifiez l’état **Caisse activée** ;
+5. réalisez une vente de test.
+
+Le jeton généré n’est jamais affiché. Il est propre à ce téléphone et stocké
+avec `flutter_secure_storage`. Un administrateur peut le révoquer depuis la PWA
+dans **Activité > Téléphones et caisses autorisés**. Après une révocation, le
+panier reste disponible mais le serveur refuse l’encaissement jusqu’à une
+nouvelle activation.
+
 ## 4. Tester sur un Poco F7 ou autre Android
 
 Activez les options développeur et le débogage USB, puis :
@@ -212,20 +230,67 @@ identifiant unique.
 dart format --output=none --set-exit-if-changed lib test integration_test
 flutter analyze
 flutter test
-flutter build apk --release --no-pub \
+flutter build apk --debug --no-pub \
   --dart-define=API_BASE_URL=https://VOTRE-SERVICE.onrender.com
 ```
 
-APK universel :
+APK de recette à installer sur les téléphones de test :
 
 ```text
-build/app/outputs/flutter-apk/app-release.apk
+build/app/outputs/flutter-apk/app-debug.apk
 ```
 
 Installation USB :
 
 ```bash
-adb install -r build/app/outputs/flutter-apk/app-release.apk
+adb install -r build/app/outputs/flutter-apk/app-debug.apk
+```
+
+Gardez le téléphone déverrouillé et l’écran allumé pendant les scénarios
+instrumentés : Flutter attend la prochaine image lorsque l’écran Android se met
+en veille.
+
+## 6. Créer la signature de production
+
+Le build `release` refuse désormais de démarrer tant qu’une clé privée dédiée
+n’est pas configurée ; il ne peut donc plus être signé accidentellement avec le
+certificat Android Debug.
+
+Créez une fois le dossier et la clé hors Git :
+
+```bash
+mkdir -p /home/ipsoum/.config/fleurapp
+keytool -genkeypair -v \
+  -keystore /home/ipsoum/.config/fleurapp/upload-keystore.jks \
+  -keyalg RSA -keysize 4096 -validity 10000 \
+  -alias fleurapp-upload
+```
+
+Choisissez des mots de passe longs et conservez-les dans un gestionnaire de
+mots de passe. Copiez ensuite le modèle local :
+
+```bash
+cd /home/ipsoum/fleurapp_project/fleurapp-mobile
+cp android/key.properties.example android/key.properties
+```
+
+Remplacez les valeurs de `android/key.properties`, notamment :
+
+```properties
+storeFile=/home/ipsoum/.config/fleurapp/upload-keystore.jks
+```
+
+Ce fichier et les keystores sont ignorés par Git. Sauvegardez la clé dans deux
+emplacements chiffrés : sa perte empêcherait de mettre à jour l’application
+signée avec cette identité.
+
+Construisez et vérifiez ensuite l’APK :
+
+```bash
+flutter build apk --release --no-pub \
+  --dart-define=API_BASE_URL=https://VOTRE-SERVICE.onrender.com
+/home/ipsoum/Android/Sdk/build-tools/35.0.0/apksigner verify --verbose \
+  build/app/outputs/flutter-apk/app-release.apk
 ```
 
 APK séparés par architecture :
@@ -235,9 +300,7 @@ flutter build apk --release --split-per-abi --no-pub \
   --dart-define=API_BASE_URL=https://VOTRE-SERVICE.onrender.com
 ```
 
-La configuration actuelle utilise la clé de développement pour le build de
-test. Créez une clé de signature privée et protégez-la hors Git avant toute
-publication Play Store.
+Ne partagez jamais `android/key.properties`, le keystore ou ses mots de passe.
 
 ### Tests fonctionnels complets sur un vrai Android
 

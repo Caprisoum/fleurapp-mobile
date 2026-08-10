@@ -52,7 +52,7 @@ void main() {
           ],
         }, statusCode: 201);
       }),
-    );
+    )..updateCheckoutToken('fdev_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     final receipt = await api.createOrder(
       items: const [
         CartItem(
@@ -72,10 +72,47 @@ void main() {
     final sentBody = jsonDecode(sentRequest.body) as Map<String, dynamic>;
     expect(sentRequest.headers['Idempotency-Key'],
         'mobile_0123456789abcdef0123456789abcdef');
+    expect(sentRequest.headers['X-Checkout-Token'],
+        'fdev_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     expect(sentBody['mode_paiement'], 'Carte Bancaire - TPE');
     expect((sentBody['cartItems'] as List).single, {'id': 7, 'quantity': 2});
     expect(receipt.totalCents, 1300);
     expect(receipt.lines.single.totalCents, 1300);
+    api.close();
+  });
+
+  test('active, vérifie et révoque une identité de caisse sécurisée', () async {
+    const deviceToken = 'fdev_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+    final requests = <http.Request>[];
+    final api = RenderApiClient(
+      baseUrl: 'https://fleurapp-test.onrender.com',
+      httpClient: MockClient((request) async {
+        requests.add(request);
+        if (request.url.path == '/api/admin/devices') {
+          return _jsonResponse({
+            'success': true,
+            'device': {'id': 4, 'nom': 'Poco F7'},
+            'token': deviceToken,
+          }, statusCode: 201);
+        }
+        return _jsonResponse({
+          'success': true,
+          'device': {'id': 4}
+        });
+      }),
+    )..updateAdminToken('jwt-device-admin');
+
+    final token = await api.registerCheckoutDevice('Poco F7');
+    expect(token, deviceToken);
+    api.updateCheckoutToken(token);
+    await api.checkCheckoutDevice();
+    await api.revokeCheckoutDevice();
+
+    expect(requests.first.headers['Authorization'], 'Bearer jwt-device-admin');
+    expect(jsonDecode(requests.first.body), {'nom': 'Poco F7'});
+    expect(requests[1].headers['X-Checkout-Token'], deviceToken);
+    expect(requests[2].method, 'DELETE');
+    expect(requests[2].headers['X-Checkout-Token'], deviceToken);
     api.close();
   });
 

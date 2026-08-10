@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app.dart';
 import 'services/admin_token_store.dart';
+import 'services/checkout_device_token_store.dart';
 import 'services/fleur_api_client.dart';
 import 'services/device_metadata_service.dart';
 import 'services/local_settings_store.dart';
@@ -14,6 +15,7 @@ Future<void> main() async {
     apiClient: RenderApiClient(baseUrl: ''),
     settingsStore: PreferencesLocalSettingsStore(),
     tokenStore: const SecureAdminTokenStore(),
+    checkoutTokenStore: const SecureCheckoutDeviceTokenStore(),
     alertScheduler: FlutterLocalAlertScheduler(),
     deviceMetadataService: FlutterDeviceMetadataService(),
   );

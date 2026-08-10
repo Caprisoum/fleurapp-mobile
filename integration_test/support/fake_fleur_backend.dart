@@ -22,6 +22,8 @@ class FakeFleurBackend {
   int nextBugId = 32;
   final requests = <http.Request>[];
   final orderRequests = <http.Request>[];
+  static const checkoutToken =
+      'fdev_ccccccccccccccccccccccccccccccccccccccccccc';
 
   final categories = <Map<String, dynamic>>[
     {'id': 1, 'nom': 'Fleurs'},
@@ -136,6 +138,22 @@ class FakeFleurBackend {
       }
       return _json({'token': 'test-jwt', 'expiresIn': '15m'});
     }
+    if (path == '/api/devices/me') {
+      String? token;
+      for (final entry in request.headers.entries) {
+        if (entry.key.toLowerCase() == 'x-checkout-token') {
+          token = entry.value;
+          break;
+        }
+      }
+      if (token != checkoutToken) {
+        return _json({'error': 'Caisse non activée ou révoquée.'}, status: 401);
+      }
+      return _json({
+        'success': true,
+        'device': {'id': 9, 'nom': 'Poco F7'}
+      });
+    }
     if (method == 'GET' && path == '/api/produits') {
       if (productFailures > 0) {
         productFailures--;
@@ -215,6 +233,13 @@ class FakeFleurBackend {
 
     if (_requiresAdmin(request) && !_authorized(request)) {
       return _json({'error': 'Connexion administrateur requise.'}, status: 401);
+    }
+    if (method == 'POST' && path == '/api/admin/devices') {
+      return _json({
+        'success': true,
+        'device': {'id': 9, 'nom': _body(request)['nom']},
+        'token': checkoutToken,
+      }, status: 201);
     }
     if (method == 'GET' && path == '/api/clients') {
       return _json([
