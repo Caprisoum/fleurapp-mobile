@@ -46,13 +46,13 @@ jobs:
         run: flutter test
 
       - name: Compiler l’APK de test
-        run: flutter build apk --debug --no-pub
+        run: flutter build apk --debug --flavor qa --no-pub
 
       - name: Conserver l’APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: fleurapp-mobile-debug
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          path: build/app/outputs/flutter-apk/app-qa-debug.apk
           if-no-files-found: error
           retention-days: 14
 
