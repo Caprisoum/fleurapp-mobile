@@ -155,6 +155,24 @@ class FakeFleurBackend {
     }
   ];
 
+  final bomRecipes = <Map<String, dynamic>>[
+    {
+      'parent_id': 2,
+      'parent_name': 'Bouquet champêtre',
+      'parent_stock': 3,
+      'available_quantity': 2,
+      'components': [
+        {
+          'product_id': 1,
+          'product_name': 'Rose rouge',
+          'stock': 12,
+          'quantity': 5,
+          'possible_quantity': 2,
+        }
+      ],
+    }
+  ];
+
   MockClient get client => MockClient(_handle);
 
   Future<http.Response> _handle(http.Request request) async {
@@ -310,6 +328,48 @@ class FakeFleurBackend {
     if (method == 'GET' && path == '/api/stock/receptions') {
       return _json(receptions);
     }
+    if (method == 'GET' && path == '/api/bom') return _json(bomRecipes);
+    if (method == 'PUT' && path.startsWith('/api/bom/')) {
+      final parentId = int.parse(path.split('/').last);
+      final parent = products.firstWhere((item) => item['id'] == parentId);
+      final rawComponents = _body(request)['components'] as List<dynamic>;
+      final components = rawComponents.map((raw) {
+        final component = Map<String, dynamic>.from(raw as Map);
+        final product = products.firstWhere(
+          (item) => item['id'] == component['productId'],
+        );
+        final stock = product['stock_actuel'] as int;
+        final quantity = component['quantity'] as int;
+        return <String, dynamic>{
+          'product_id': product['id'],
+          'product_name': product['name'],
+          'stock': stock,
+          'quantity': quantity,
+          'possible_quantity': stock ~/ quantity,
+        };
+      }).toList(growable: false);
+      final available = components.fold<int>(
+        parent['stock_actuel'] as int,
+        (value, component) => value < (component['possible_quantity'] as int)
+            ? value
+            : component['possible_quantity'] as int,
+      );
+      final recipe = <String, dynamic>{
+        'parent_id': parentId,
+        'parent_name': parent['name'],
+        'parent_stock': parent['stock_actuel'],
+        'available_quantity': available,
+        'components': components,
+      };
+      bomRecipes.removeWhere((item) => item['parent_id'] == parentId);
+      bomRecipes.add(recipe);
+      return _json({'success': true, 'recipe': recipe});
+    }
+    if (method == 'DELETE' && path.startsWith('/api/bom/')) {
+      final parentId = int.parse(path.split('/').last);
+      bomRecipes.removeWhere((item) => item['parent_id'] == parentId);
+      return _json({'success': true});
+    }
     if (method == 'GET' && path == '/api/pertes') return _json(wastes);
     if (method == 'GET' && path == '/api/clotures') return _json(closures);
     if (method == 'GET' && path == '/api/admin/bugs') return _json(bugs);
@@ -432,6 +492,7 @@ class FakeFleurBackend {
         path == '/api/cloture-jour' ||
         path == '/api/stock/reception' ||
         path.startsWith('/api/stock/receptions') ||
+        path.startsWith('/api/bom') ||
         path.startsWith('/api/admin/') ||
         path.startsWith('/api/notifications/') ||
         path.startsWith('/api/export/') ||

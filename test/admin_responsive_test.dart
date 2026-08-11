@@ -75,6 +75,60 @@ void main() {
     expect(find.text('Monstera QA'), findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'produit enregistré');
   });
+
+  testWidgets('crée une nomenclature sans overflow sur la largeur du Poco F7',
+      (tester) async {
+    tester.view.physicalSize = const Size(393, 873);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final backend = FakeFleurBackend();
+    final controller = AppController(
+      apiClient: RenderApiClient(
+        baseUrl: 'https://fleurapp-qa.invalid',
+        httpClient: backend.client,
+      ),
+      settingsStore: MemorySettingsStore(),
+      tokenStore: MemoryTokenStore('test-jwt'),
+      alertScheduler: FakeAlertScheduler(),
+      deviceMetadataService: const FakeDeviceMetadataService(),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+    await tester.pumpWidget(FleurApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.inventory_2_outlined).last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('BOM'));
+    await tester.tap(find.text('BOM'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bouquet champêtre'), findsOneWidget);
+    expect(find.textContaining('2 disponible(s)'), findsOneWidget);
+    expect(tester.takeException(), isNull, reason: 'liste BOM');
+
+    await tester.tap(find.byKey(const Key('create-bom-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Nouvelle nomenclature'), findsWidgets);
+
+    await tester.tap(find.byType(DropdownButtonFormField<int>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Orchidée épuisée').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Rose rouge').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Enregistrer').last);
+    await tester.pumpAndSettle();
+
+    expect(backend.bomRecipes.length, 2);
+    expect(
+      backend.bomRecipes.any((recipe) => recipe['parent_id'] == 3),
+      isTrue,
+    );
+    expect(tester.takeException(), isNull, reason: 'création BOM');
+  });
 }
 
 Finder _fieldWithLabel(String label) => find.ancestor(

@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../core/money.dart';
 import '../models/admin_models.dart';
 import '../models/bug_report.dart';
+import '../models/bom_recipe.dart';
 import '../models/cart_item.dart';
 import '../models/catalog_import.dart';
 import '../models/order_receipt.dart';
@@ -40,6 +41,9 @@ abstract class AdminApiClient {
   Future<Customer> createCustomer(CustomerDraft customer);
   Future<List<OrderSummary>> fetchOrders();
   Future<OrderDetail> fetchOrderDetail(int id);
+  Future<List<BomRecipe>> fetchBomRecipes();
+  Future<BomRecipe> saveBomRecipe(BomRecipeDraft recipe);
+  Future<void> deleteBomRecipe(int parentId);
   Future<void> createCategory(String name);
   Future<void> deleteCategory(int id);
   Future<void> createProduct(ProductDraft product);
@@ -202,6 +206,33 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
       throw ApiException(error.message);
     }
   }
+
+  @override
+  Future<List<BomRecipe>> fetchBomRecipes() =>
+      _getList('/api/bom', BomRecipe.fromJson, admin: true);
+
+  @override
+  Future<BomRecipe> saveBomRecipe(BomRecipeDraft recipe) async {
+    final payload = await _sendJson(
+      'PUT',
+      '/api/bom/${recipe.parentId}',
+      body: recipe.toJson(),
+      admin: true,
+    );
+    final saved = payload['recipe'];
+    if (saved is! Map) {
+      throw const ApiException('Nomenclature absente de la réponse.');
+    }
+    try {
+      return BomRecipe.fromJson(Map<String, dynamic>.from(saved));
+    } on FormatException catch (error) {
+      throw ApiException(error.message);
+    }
+  }
+
+  @override
+  Future<void> deleteBomRecipe(int parentId) =>
+      _sendVoid('DELETE', '/api/bom/$parentId', admin: true);
 
   @override
   Future<List<StockReception>> fetchStockReceptions() => _getList(

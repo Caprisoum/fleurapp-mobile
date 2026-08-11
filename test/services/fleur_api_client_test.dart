@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fleurapp_mobile/models/admin_models.dart';
+import 'package:fleurapp_mobile/models/bom_recipe.dart';
 import 'package:fleurapp_mobile/models/cart_item.dart';
 import 'package:fleurapp_mobile/models/catalog_import.dart';
 import 'package:fleurapp_mobile/models/bug_report.dart';
@@ -205,6 +206,61 @@ void main() {
             request.headers['Authorization'] == 'Bearer jwt-client-history'),
         isTrue);
     expect(requests.first.body, contains('zoe@example.fr'));
+    api.close();
+  });
+
+  test('liste, remplace et supprime une nomenclature avec le JWT admin',
+      () async {
+    final requests = <http.Request>[];
+    final recipe = {
+      'parent_id': 7,
+      'parent_name': 'Bouquet pastel',
+      'parent_stock': 5,
+      'available_quantity': 3,
+      'components': [
+        {
+          'product_id': 2,
+          'product_name': 'Rose',
+          'stock': 10,
+          'quantity': 3,
+          'possible_quantity': 3,
+        }
+      ],
+    };
+    final api = RenderApiClient(
+      baseUrl: 'https://fleurapp-test.onrender.com',
+      httpClient: MockClient((request) async {
+        requests.add(request);
+        if (request.method == 'GET') return _jsonResponse([recipe]);
+        if (request.method == 'PUT') {
+          return _jsonResponse({'success': true, 'recipe': recipe});
+        }
+        return _jsonResponse({'success': true});
+      }),
+    )..updateAdminToken('jwt-bom');
+
+    final recipes = await api.fetchBomRecipes();
+    final saved = await api.saveBomRecipe(const BomRecipeDraft(
+      parentId: 7,
+      components: [BomComponentDraft(productId: 2, quantity: 3)],
+    ));
+    await api.deleteBomRecipe(7);
+
+    expect(recipes.single.availableQuantity, 3);
+    expect(saved.components.single.productName, 'Rose');
+    expect(requests.map((request) => request.method), ['GET', 'PUT', 'DELETE']);
+    expect(requests[1].url.path, '/api/bom/7');
+    expect(jsonDecode(requests[1].body), {
+      'components': [
+        {'productId': 2, 'quantity': 3}
+      ],
+    });
+    expect(
+      requests.every(
+        (request) => request.headers['Authorization'] == 'Bearer jwt-bom',
+      ),
+      isTrue,
+    );
     api.close();
   });
 

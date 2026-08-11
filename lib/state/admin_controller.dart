@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/admin_models.dart';
 import '../models/bug_report.dart';
+import '../models/bom_recipe.dart';
 import '../models/catalog_import.dart';
 import '../models/order_history.dart';
 import '../models/product.dart';
@@ -22,6 +23,7 @@ class AdminController extends ChangeNotifier {
   List<WasteRecord> wasteRecords = const [];
   List<ClosureRecord> closures = const [];
   List<BugReport> bugReports = const [];
+  List<BomRecipe> bomRecipes = const [];
   AdminStatus status = AdminStatus.initial;
   String? error;
   bool busy = false;
@@ -44,6 +46,7 @@ class AdminController extends ChangeNotifier {
         _apiClient.fetchWasteRecords(),
         _apiClient.fetchClosures(),
         _apiClient.fetchBugReports(),
+        _apiClient.fetchBomRecipes(),
       ]);
       products = values[0] as List<Product>;
       categories = values[1] as List<ProductCategory>;
@@ -53,6 +56,7 @@ class AdminController extends ChangeNotifier {
       wasteRecords = values[5] as List<WasteRecord>;
       closures = values[6] as List<ClosureRecord>;
       bugReports = values[7] as List<BugReport>;
+      bomRecipes = values[8] as List<BomRecipe>;
       status = AdminStatus.ready;
     } on ApiException catch (exception) {
       status = AdminStatus.error;
@@ -76,6 +80,7 @@ class AdminController extends ChangeNotifier {
     wasteRecords = const [];
     closures = const [];
     bugReports = const [];
+    bomRecipes = const [];
     status = AdminStatus.initial;
     error = null;
     busy = false;
@@ -116,6 +121,18 @@ class AdminController extends ChangeNotifier {
   Future<void> deleteProduct(Product product) async {
     await _action(() => _apiClient.deleteProduct(product.id));
     await refreshCatalog();
+  }
+
+  Future<void> saveBomRecipe(BomRecipeDraft draft) async {
+    await _action(() async {
+      await _apiClient.saveBomRecipe(draft);
+    });
+    await refreshBom();
+  }
+
+  Future<void> deleteBomRecipe(BomRecipe recipe) async {
+    await _action(() => _apiClient.deleteBomRecipe(recipe.parentId));
+    await refreshBom();
   }
 
   Future<CatalogImportPreview> previewCatalogImport(
@@ -178,6 +195,11 @@ class AdminController extends ChangeNotifier {
 
   Future<void> refreshStock() async {
     receptions = await _apiClient.fetchStockReceptions();
+    _notify();
+  }
+
+  Future<void> refreshBom() async {
+    bomRecipes = await _apiClient.fetchBomRecipes();
     _notify();
   }
 

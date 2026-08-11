@@ -18,6 +18,8 @@ backend Express/PostgreSQL FleurApp déployé sur Render.
 - catalogue : création, modification, suppression, catégories, fraîcheur,
   conditionnements et remise anti-gaspi ;
 - stocks : niveaux réels, réceptions converties, pertes/rebuts et historiques ;
+- nomenclatures de bouquets : création, recherche des composants, quantités,
+  modification, suppression et capacité réellement disponible ;
 - activité : clôture Z définitive, totaux/TVA/modes de paiement, historique,
   création et consultation des clients, historique serveur des commandes avec
   détail des lignes et export FEC consultable/copiable ;
@@ -33,8 +35,8 @@ Tous les montants sont manipulés en centimes entiers. Aucune donnée fictive
 n’est affichée lorsque Render ou PostgreSQL ne répond pas.
 
 Le rapport [AUDIT_COMPARATIF_MOBILE.md](AUDIT_COMPARATIF_MOBILE.md) décrit la
-correspondance Web/mobile et les fonctions demandées qui nécessitent encore de
-nouvelles routes backend.
+correspondance Web/mobile et les fonctions qui nécessitent encore de nouveaux
+contrats backend.
 
 ## Architecture
 
@@ -311,7 +313,7 @@ parcours sur le téléphone :
 - panne du catalogue, message utilisateur et reprise avec « Réessayer » ;
 - recherche, panier, paiement, conflit de stock 409 et clé d’idempotence ;
 - PIN administrateur erroné puis valide, JWT, import CSV, catégories et produit ;
-- réception, perte, historiques de stock et écran BOM ;
+- réception, perte, historiques de stock et création d’une nomenclature BOM ;
 - clients, Ticket Z, FEC, traitement d’un bug et alertes J-1 ;
 - test de santé du backend, thèmes clair/sombre, rapport de bug et déconnexion.
 

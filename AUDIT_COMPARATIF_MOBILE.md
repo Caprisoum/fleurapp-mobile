@@ -2,8 +2,8 @@
 
 Date : 8 août 2026
 
-Périmètre modifié : dépôt `fleurapp-mobile` uniquement. Le dépôt
-`fleurapp_backend_ui` a été lu comme source de vérité, sans modification.
+Périmètre initial : dépôt `fleurapp-mobile`. Mise à jour du 11 août 2026 : les
+dépôts `fleurapp_backend_ui` et `fleurapp-mobile` ont été alignés ensemble.
 
 ## Synthèse
 
@@ -24,10 +24,10 @@ ainsi que la liste et le détail des commandes. L’application mobile permet do
 d’ajouter une fiche client et de consulter l’historique persistant, y compris
 après redémarrage ou depuis un autre téléphone autorisé.
 
-Deux demandes supplémentaires nécessitent encore un contrat backend dédié :
-l’annulation compensatoire et l’administration des nomenclatures. Des écrans
-explicatifs remplacent volontairement les boutons qui modifieraient une vente
-clôturée ou appelleraient une route inexistante.
+La gestion des nomenclatures est désormais complète : API JWT transactionnelle,
+création/remplacement/suppression, capacité disponible et écran mobile. La
+principale fonction métier nécessitant encore un contrat dédié est l’annulation
+compensatoire d’une commande.
 
 ## Inventaire comparatif
 
@@ -45,6 +45,7 @@ clôturée ou appelleraient une route inexistante.
 | Fraîcheur/anti-gaspi | Badge partiel | État, dates et remise serveur de 30 % |
 | Réceptions de stock | Absent | Conversion achat→vente et historique |
 | Pertes/rebuts | Absent | Déclaration et historique du jour |
+| Nomenclatures BOM | Encart informatif | Création, modification, suppression et capacité disponible |
 | Clôture Z | Absent | Confirmation irréversible, ticket et historique |
 | Export FEC | Absent | Génération, consultation monospace et copie |
 | URL API | `dart-define` uniquement | `dart-define` + réglage local et test `/api/health` |
@@ -70,6 +71,8 @@ clôturée ou appelleraient une route inexistante.
 | `POST /api/cloture-jour` | JWT | Ticket Z définitif |
 | `GET /api/clotures` | JWT | Historique Z |
 | `GET /api/export/fec` | JWT | Export annuel |
+| `GET /api/bom` | JWT | Liste des compositions et capacités disponibles |
+| `PUT/DELETE /api/bom/:parentId` | JWT | Gestion transactionnelle des compositions |
 
 `DELETE /api/clotures/:id` n’est volontairement pas appelé : le serveur répond
 `405` et PostgreSQL protège l’inaltérabilité.
@@ -99,13 +102,11 @@ clôturée ou appelleraient une route inexistante.
 
 ## Écarts backend empêchant les fonctions supplémentaires
 
-Les routes suivantes restent à concevoir après la mise à jour du 11 août 2026 :
+La route suivante reste à concevoir après la mise à jour du 11 août 2026 :
 
 1. une annulation comptable compensatoire, par exemple
    `POST /api/commandes/:id/annulations`, qui crée une écriture inverse et
-   réintègre le stock sans modifier une vente clôturée ;
-2. `GET/POST/PUT/DELETE /api/produits/:id/bom` pour administrer
-   `produits_bom` sous transaction.
+   réintègre le stock sans modifier une vente clôturée.
 
 Une annulation par `DELETE` ou `UPDATE` serait incompatible avec les triggers
 d’inaltérabilité décrits dans l’audit backend. Ces contrats doivent donc être
@@ -115,19 +116,18 @@ conçus et sécurisés côté serveur avant activation mobile.
 
 - formatage Dart de `lib/` et `test/` ;
 - `flutter analyze` sans constat ;
-- 15 tests unitaires/API/widget : parsing produit, centimes, stock, panier,
-  idempotence/rejeu, Bearer JWT, contrat JSON, URL et navigation caisse ;
+- 33 tests unitaires/API/widget : parsing produit/BOM, centimes, stock, panier,
+  idempotence/rejeu, Bearer JWT, contrats JSON, création de nomenclature sur
+  format Poco F7, URL et navigation caisse ;
 - configuration Gradle 8.7 et Java 17 préservée ;
 - chaîne Android alignée sur AGP 8.5.1, Kotlin 1.9.22, NDK 26.1,
   Gradle 8.7 et Java 17 ;
-- build APK release propre réussi : `23 379 983` octets, SHA-256
-  `2aa5a74d2944e50ac491ddc933940edd82876d6a342b2e4ae7449ffeaee925e9` ;
-- archive APK testée sans erreur et signature de développement vérifiée en
-  schémas Android v1 et v2.
+- build des APK debug séparés par architecture réussi avec l’URL Render ;
+- build `release` volontairement réservé à la future clé de signature Android
+  permanente.
 
 ## Prochain lot backend recommandé
 
-Ajouter ensuite les contrats d’annulation compensatoire et de gestion BOM avec
-validation, JWT, transactions, verrous et tests PostgreSQL concurrents. Le
-mobile pourra alors remplacer le dernier encart BOM sans compromettre
-l’inaltérabilité fiscale.
+Ajouter le contrat d’annulation compensatoire avec validation, JWT,
+transactions, verrous et tests PostgreSQL concurrents, sans modifier les ventes
+ni les clôtures historiques.
