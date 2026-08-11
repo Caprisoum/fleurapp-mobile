@@ -222,7 +222,9 @@ void main() {
       expect(find.text('2 × Rose rouge'), findsOneWidget);
       await tester.tap(find.text('BOM'));
       await tester.pumpAndSettle();
-      expect(find.text('Nomenclatures protégées côté serveur'), findsOneWidget);
+      expect(find.text('Nouvelle nomenclature'), findsOneWidget);
+      expect(find.text('Bouquet champêtre'), findsOneWidget);
+      expect(find.textContaining('1 composant'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -312,8 +314,13 @@ void main() {
         findsOneWidget,
       );
 
-      await tester.ensureVisible(find.byKey(const Key('checkout-device-card')));
-      await tester.tap(find.text('Activer'));
+      await tester.drag(
+        find.byType(ListView).first,
+        const Offset(0, -520),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('checkout-device-card')), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Activer'));
       await tester.pumpAndSettle();
       expect(find.text('Caisse activée'), findsOneWidget);
       expect(harness.controller.checkoutDeviceActive, isTrue);
@@ -352,10 +359,12 @@ void main() {
       await tester.ensureVisible(find.text('Envoyer le rapport'));
       await tester.tap(find.text('Envoyer le rapport'));
       await tester.pumpAndSettle();
-      expect(find.text('Rapport #32 envoyé. Merci !'), findsOneWidget);
       final bugRequest = harness.backend.requests.lastWhere(
         (request) => request.url.path == '/api/bugs',
       );
+      expect(find.text('Envoyer le rapport'), findsNothing);
+      expect(harness.backend.bugs.first['id'], 32);
+      expect(harness.backend.bugs.first['titre'], 'Erreur écran stocks');
       final bugBody = jsonDecode(bugRequest.body) as Map<String, dynamic>;
       expect(bugBody['appareil_info'], {
         'os': 'Android 16 (SDK 36)',

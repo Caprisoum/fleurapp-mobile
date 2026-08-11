@@ -45,10 +45,10 @@ fi
 
 cd "$PROJECT_ROOT"
 "$FLUTTER_BIN" pub get --offline
-"$FLUTTER_BIN" build apk --release --split-per-abi --no-pub \
+"$FLUTTER_BIN" build apk --release --flavor production --split-per-abi --no-pub \
   --dart-define="API_BASE_URL=${API_BASE_URL%/}"
 
-mapfile -t RELEASE_APKS < <(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name 'app-*-release.apk' -print | sort)
+mapfile -t RELEASE_APKS < <(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name 'app-*-production-release.apk' -print | sort)
 if [[ ${#RELEASE_APKS[@]} -eq 0 ]]; then
   echo "Aucun APK release n’a été produit." >&2
   exit 1
@@ -58,7 +58,7 @@ for apk in "${RELEASE_APKS[@]}"; do
   "$APKSIGNER_BIN" verify --verbose --print-certs "$apk"
 done
 
-ARM64_APK="build/app/outputs/flutter-apk/app-arm64-v8a-release.apk"
+ARM64_APK="build/app/outputs/flutter-apk/app-arm64-v8a-production-release.apk"
 if [[ ! -f "$ARM64_APK" ]]; then
   echo "L’APK arm64-v8a destiné au Poco est introuvable." >&2
   exit 1

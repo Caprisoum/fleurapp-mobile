@@ -233,20 +233,20 @@ identifiant unique.
 dart format --output=none --set-exit-if-changed lib test integration_test
 flutter analyze
 flutter test
-flutter build apk --debug --no-pub \
+flutter build apk --debug --flavor qa --no-pub \
   --dart-define=API_BASE_URL=https://VOTRE-SERVICE.onrender.com
 ```
 
 APK de recette à installer sur les téléphones de test :
 
 ```text
-build/app/outputs/flutter-apk/app-debug.apk
+build/app/outputs/flutter-apk/app-qa-debug.apk
 ```
 
 Installation USB :
 
 ```bash
-adb install -r build/app/outputs/flutter-apk/app-debug.apk
+adb install -r build/app/outputs/flutter-apk/app-qa-debug.apk
 ```
 
 Gardez le téléphone déverrouillé et l’écran allumé pendant les scénarios
@@ -315,16 +315,16 @@ signée avec cette identité.
 Construisez et vérifiez ensuite l’APK :
 
 ```bash
-flutter build apk --release --no-pub \
+flutter build apk --release --flavor production --no-pub \
   --dart-define=API_BASE_URL=https://VOTRE-SERVICE.onrender.com
 /home/ipsoum/Android/Sdk/build-tools/35.0.0/apksigner verify --verbose \
-  build/app/outputs/flutter-apk/app-release.apk
+  build/app/outputs/flutter-apk/app-production-release.apk
 ```
 
 APK séparés par architecture :
 
 ```bash
-flutter build apk --release --split-per-abi --no-pub \
+flutter build apk --release --flavor production --split-per-abi --no-pub \
   --dart-define=API_BASE_URL=https://VOTRE-SERVICE.onrender.com
 ```
 
@@ -344,7 +344,10 @@ parcours sur le téléphone :
 
 Un backend HTTP complet mais simulé répond à l’APK. Les scénarios contrôlent les
 corps JSON et headers réellement émis sans toucher Render ni la base de
-production. L’import via le sélecteur de fichiers Android, le paiement NFC et le
+production. La commande utilise l’identifiant temporaire
+`fr.fleurapp.fleurapp_mobile.qa`, puis désinstalle cette application QA : la
+release `fr.fleurapp.fleurapp_mobile`, sa session et son activation restent
+intactes. L’import via le sélecteur de fichiers Android, le paiement NFC et le
 matériel Bluetooth restent des recettes matérielles manuelles tant que leurs SDK
 ne sont pas connectés.
 

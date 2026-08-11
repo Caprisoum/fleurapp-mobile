@@ -11,6 +11,10 @@ if [[ -z "$FLUTTER_BIN" ]]; then
   exit 1
 fi
 DART_BIN="${DART_BIN:-$(dirname "$FLUTTER_BIN")/dart}"
+ADB_BIN="${ADB_BIN:-$(command -v adb || true)}"
+if [[ -z "$ADB_BIN" && -x /home/ipsoum/Android/Sdk/platform-tools/adb ]]; then
+  ADB_BIN=/home/ipsoum/Android/Sdk/platform-tools/adb
+fi
 
 cd "$PROJECT_ROOT"
 
@@ -31,11 +35,27 @@ static_security() {
 }
 
 build_apk() {
-  "$FLUTTER_BIN" build apk --debug --no-pub
+  "$FLUTTER_BIN" build apk --debug --flavor qa --no-pub
 }
 
 build_release() {
   "$PROJECT_ROOT/tool/build-release.sh"
+}
+
+integration_tests() {
+  local device_id="$1"
+  local qa_package="fr.fleurapp.fleurapp_mobile.qa"
+
+  set +e
+  "$FLUTTER_BIN" test integration_test/app_full_test.dart \
+    --flavor qa -d "$device_id"
+  local test_status=$?
+  set -e
+
+  if [[ -n "$ADB_BIN" ]]; then
+    "$ADB_BIN" -s "$device_id" uninstall "$qa_package" >/dev/null 2>&1 || true
+  fi
+  return "$test_status"
 }
 
 case "${1:-all}" in
@@ -50,7 +70,7 @@ case "${1:-all}" in
       echo "Usage : tool/qa.sh integration ID_TELEPHONE" >&2
       exit 2
     fi
-    "$FLUTTER_BIN" test integration_test/app_full_test.dart -d "$2"
+    integration_tests "$2"
     ;;
   apk)
     build_apk
