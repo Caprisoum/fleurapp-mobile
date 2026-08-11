@@ -76,6 +76,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Ticket #501'), findsOneWidget);
+      expect(find.byKey(const Key('close-receipt-button')), findsOneWidget);
       expect(harness.backend.orderRequests, hasLength(2));
       final successful = harness.backend.orderRequests.last;
       expect(_header(successful.headers, 'idempotency-key'),
@@ -90,8 +91,9 @@ void main() {
       ]);
       expect(body['mode_paiement'], PaymentMethod.cash.apiValue);
 
-      await tester.tap(find.text('Nouvelle vente'));
+      await tester.tapAt(const Offset(8, 8));
       await tester.pumpAndSettle();
+      expect(find.text('Ticket #501'), findsNothing);
       expect(find.text('Votre panier est vide'), findsNothing);
       expect(tester.takeException(), isNull);
     });
@@ -144,6 +146,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Nouveau produit'), findsOneWidget);
       _expectNoLayoutError(tester, 'ouverture de la fiche produit');
+      await tester.tap(find.byKey(const Key('product-category-picker')));
+      await tester.pumpAndSettle();
+      expect(find.text('Choisir une catégorie'), findsOneWidget);
+      expect(find.text('Catégorie du catalogue'), findsWidgets);
+      await tester.tap(find.text('Plantes vertes').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Plantes vertes'), findsOneWidget);
+      _expectNoLayoutError(tester, 'sélection d’une catégorie');
       await tester.enterText(_fieldWithLabel('Nom'), 'Monstera QA');
       await tester.enterText(_fieldWithLabel('Prix TTC'), '19,90');
       await tester.enterText(_fieldWithLabel('Stock actuel'), '6');
@@ -156,6 +166,12 @@ void main() {
       expect(
           harness.controller.admin.products.any((p) => p.name == 'Monstera QA'),
           isTrue);
+      expect(
+        harness.controller.admin.products
+            .firstWhere((p) => p.name == 'Monstera QA')
+            .category,
+        'Plantes vertes',
+      );
       expect(find.text('Produit créé.'), findsOneWidget);
       _expectNoLayoutError(tester, 'enregistrement de la fiche produit');
       final createRequest = harness.backend.requests.lastWhere(

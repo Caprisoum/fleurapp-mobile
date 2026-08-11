@@ -664,6 +664,30 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     super.dispose();
   }
 
+  String get _selectedCategoryName {
+    if (_categoryId == null) return 'Sans catégorie';
+    for (final category in widget.categories) {
+      if (category.id == _categoryId) return category.name;
+    }
+    return 'Sans catégorie';
+  }
+
+  Future<void> _pickCategory() async {
+    final selection = await showModalBottomSheet<_CategoryChoice>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (context) => _CategoryPickerSheet(
+        categories: widget.categories,
+        selectedId: _categoryId,
+      ),
+    );
+    if (selection != null && mounted) {
+      setState(() => _categoryId = selection.id);
+    }
+  }
+
   Future<void> _pickArrivalDate() async {
     final result = await showDatePicker(
       context: context,
@@ -732,21 +756,35 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                     controller: _name,
                     decoration: const InputDecoration(labelText: 'Nom')),
                 const SizedBox(height: 10),
-                DropdownButtonFormField<int?>(
-                  value: _categoryId,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Catégorie'),
-                  items: [
-                    const DropdownMenuItem<int?>(
-                        value: null, child: Text('Sans catégorie')),
-                    ...widget.categories
-                        .map((category) => DropdownMenuItem<int?>(
-                              value: category.id,
-                              child: Text(category.name,
-                                  overflow: TextOverflow.ellipsis),
-                            )),
-                  ],
-                  onChanged: (value) => setState(() => _categoryId = value),
+                Semantics(
+                  button: true,
+                  label: 'Choisir une catégorie, $_selectedCategoryName',
+                  child: InkWell(
+                    key: const Key('product-category-picker'),
+                    onTap: _pickCategory,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Catégorie',
+                        prefixIcon: Icon(Icons.folder_outlined),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _selectedCategoryName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const Icon(Icons.expand_more_rounded),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Row(
@@ -830,6 +868,251 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
         ],
         decoration: InputDecoration(labelText: label, suffixText: suffix),
       );
+}
+
+class _CategoryChoice {
+  const _CategoryChoice(this.id);
+
+  final int? id;
+}
+
+class _CategoryPickerSheet extends StatefulWidget {
+  const _CategoryPickerSheet({
+    required this.categories,
+    required this.selectedId,
+  });
+
+  final List<ProductCategory> categories;
+  final int? selectedId;
+
+  @override
+  State<_CategoryPickerSheet> createState() => _CategoryPickerSheetState();
+}
+
+class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final query = _query.trim().toLowerCase();
+    final categories = widget.categories
+        .where((category) => category.name.toLowerCase().contains(query))
+        .toList(growable: false);
+    final showUncategorized = query.isEmpty || 'sans catégorie'.contains(query);
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
+      ),
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * .72,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: colors.primaryContainer,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.folder_copy_rounded,
+                    color: colors.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Choisir une catégorie',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                      Text(
+                        '${widget.categories.length} catégorie(s) disponible(s)',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Fermer',
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _searchController,
+              autofocus: false,
+              textInputAction: TextInputAction.search,
+              onChanged: (value) => setState(() => _query = value),
+              decoration: InputDecoration(
+                hintText: 'Rechercher une catégorie…',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Effacer la recherche',
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _query = '');
+                        },
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ListView(
+                key: const Key('product-category-list'),
+                children: [
+                  if (showUncategorized)
+                    _CategoryOptionCard(
+                      name: 'Sans catégorie',
+                      detail: 'Produit non classé',
+                      icon: Icons.inventory_2_outlined,
+                      selected: widget.selectedId == null,
+                      onTap: () => Navigator.of(context)
+                          .pop(const _CategoryChoice(null)),
+                    ),
+                  ...categories.map(
+                    (category) => _CategoryOptionCard(
+                      name: category.name,
+                      detail: 'Catégorie du catalogue',
+                      icon: Icons.local_florist_rounded,
+                      selected: widget.selectedId == category.id,
+                      onTap: () => Navigator.of(context)
+                          .pop(_CategoryChoice(category.id)),
+                    ),
+                  ),
+                  if (!showUncategorized && categories.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 34),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.search_off_rounded,
+                            size: 42,
+                            color: colors.onSurfaceVariant,
+                          ),
+                          const SizedBox(height: 10),
+                          const Text('Aucune catégorie trouvée.'),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryOptionCard extends StatelessWidget {
+  const _CategoryOptionCard({
+    required this.name,
+    required this.detail,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String name;
+  final String detail;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 9),
+      color: selected ? colors.primaryContainer : colors.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: selected ? colors.primary : colors.outlineVariant,
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 72),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? colors.primary
+                        : colors.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: selected ? colors.onPrimary : colors.primary,
+                  ),
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        detail,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  selected
+                      ? Icons.check_circle_rounded
+                      : Icons.chevron_right_rounded,
+                  color: selected ? colors.primary : colors.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _CategoryManager extends StatefulWidget {

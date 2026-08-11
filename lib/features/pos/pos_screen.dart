@@ -92,10 +92,34 @@ class _PosScreenState extends State<PosScreen> {
     final ticket = _receiptText(receipt);
     return showDialog<void>(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
+      barrierLabel: 'Fermer le ticket',
       builder: (context) => AlertDialog(
-        icon: const Icon(Icons.receipt_long_rounded, size: 40),
-        title: Text('Ticket #${receipt.orderId}'),
+        titlePadding: const EdgeInsets.fromLTRB(20, 18, 12, 8),
+        title: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.tertiaryContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                Icons.receipt_long_rounded,
+                color: Theme.of(context).colorScheme.onTertiaryContainer,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text('Ticket #${receipt.orderId}')),
+            IconButton(
+              key: const Key('close-receipt-button'),
+              tooltip: 'Fermer le ticket',
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.close_rounded),
+            ),
+          ],
+        ),
         content: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 470, maxHeight: 520),
           child: SingleChildScrollView(
@@ -103,59 +127,48 @@ class _PosScreenState extends State<PosScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 ...receipt.lines.map(
-                  (line) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 5),
-                    child: Row(
+                  (line) => _ReceiptLineCard(line: line),
+                ),
+                const SizedBox(height: 8),
+                _ReceiptSummary(receipt: receipt),
+                if (receipt.hash.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          child: Text(
-                            '${line.quantity} × ${line.name}',
-                            overflow: TextOverflow.ellipsis,
+                        Text(
+                          'Empreinte d’intégrité',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelLarge
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 6),
+                        SelectableText(
+                          receipt.hash,
+                          maxLines: 4,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 11,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Text(formatEuro(line.totalCents)),
                       ],
                     ),
-                  ),
-                ),
-                if (receipt.lines.isNotEmpty) const Divider(),
-                _ReceiptRow(
-                    label: 'Total TTC', value: formatEuro(receipt.totalCents)),
-                if (receipt.depositCents != null) ...[
-                  const SizedBox(height: 8),
-                  _ReceiptRow(
-                    label: 'Acompte',
-                    value: formatEuro(receipt.depositCents!),
-                  ),
-                ],
-                if ((receipt.remainingCents ?? 0) > 0) ...[
-                  const SizedBox(height: 8),
-                  _ReceiptRow(
-                    label: 'Reste à payer',
-                    value: formatEuro(receipt.remainingCents!),
-                  ),
-                ],
-                if (receipt.status != null) ...[
-                  const SizedBox(height: 8),
-                  _ReceiptRow(label: 'Statut', value: receipt.status!),
-                ],
-                if (receipt.hash.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Text('Empreinte d’intégrité',
-                      style: Theme.of(context).textTheme.labelLarge),
-                  const SizedBox(height: 5),
-                  SelectableText(
-                    receipt.hash,
-                    maxLines: 4,
-                    style:
-                        const TextStyle(fontFamily: 'monospace', fontSize: 11),
                   ),
                 ],
               ],
             ),
           ),
         ),
+        actionsAlignment: MainAxisAlignment.spaceBetween,
+        actionsOverflowAlignment: OverflowBarAlignment.center,
         actions: [
           TextButton.icon(
             onPressed: () async {
@@ -328,24 +341,139 @@ class _PosScreenState extends State<PosScreen> {
 }
 
 class _ReceiptRow extends StatelessWidget {
-  const _ReceiptRow({required this.label, required this.value});
+  const _ReceiptRow({
+    required this.label,
+    required this.value,
+    this.emphasized = false,
+  });
   final String label;
   final String value;
+  final bool emphasized;
 
   @override
   Widget build(BuildContext context) => Row(
         children: [
-          Expanded(child: Text(label)),
+          Expanded(
+            child: Text(
+              label,
+              style: emphasized
+                  ? const TextStyle(fontWeight: FontWeight.w900)
+                  : null,
+            ),
+          ),
           const SizedBox(width: 12),
           Flexible(
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: const TextStyle(fontWeight: FontWeight.w800),
+              style: TextStyle(
+                fontWeight: emphasized ? FontWeight.w900 : FontWeight.w800,
+                fontSize: emphasized ? 16 : null,
+              ),
             ),
           ),
         ],
       );
+}
+
+class _ReceiptLineCard extends StatelessWidget {
+  const _ReceiptLineCard({required this.line});
+
+  final ReceiptLine line;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Container(
+            constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: colors.primaryContainer,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Text(
+              '${line.quantity} ×',
+              style: TextStyle(
+                color: colors.onPrimaryContainer,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Text(
+              line.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            formatEuro(line.totalCents),
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReceiptSummary extends StatelessWidget {
+  const _ReceiptSummary({required this.receipt});
+
+  final OrderReceipt receipt;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.primaryContainer.withOpacity(.42),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.primary.withOpacity(.22)),
+      ),
+      child: Column(
+        children: [
+          _ReceiptRow(
+            label: 'Total TTC',
+            value: formatEuro(receipt.totalCents),
+            emphasized: true,
+          ),
+          if (receipt.depositCents != null) ...[
+            const Divider(height: 18),
+            _ReceiptRow(
+              label: 'Acompte',
+              value: formatEuro(receipt.depositCents!),
+            ),
+          ],
+          if ((receipt.remainingCents ?? 0) > 0) ...[
+            const Divider(height: 18),
+            _ReceiptRow(
+              label: 'Reste à payer',
+              value: formatEuro(receipt.remainingCents!),
+            ),
+          ],
+          if (receipt.status != null) ...[
+            const Divider(height: 18),
+            _ReceiptRow(label: 'Statut', value: receipt.status!),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _WasteResult {

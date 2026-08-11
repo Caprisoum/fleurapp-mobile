@@ -57,6 +57,16 @@ void main() {
     expect(find.text('Nouveau produit'), findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'fiche produit vide');
 
+    await tester.tap(find.byKey(const Key('product-category-picker')));
+    await tester.pumpAndSettle();
+    expect(find.text('Choisir une catégorie'), findsOneWidget);
+    expect(find.byKey(const Key('product-category-list')), findsOneWidget);
+    expect(find.text('Produit non classé'), findsOneWidget);
+    await tester.tap(find.text('Plantes vertes').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Plantes vertes'), findsOneWidget);
+    expect(tester.takeException(), isNull, reason: 'sélecteur de catégorie');
+
     await tester.enterText(_fieldWithLabel('Nom'), 'Monstera QA');
     await tester.enterText(_fieldWithLabel('Prix TTC'), '19,90');
     await tester.enterText(_fieldWithLabel('Stock actuel'), '6');
@@ -70,6 +80,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Nouveau produit'), findsNothing);
     expect(backend.products.last['name'], 'Monstera QA');
+    expect(backend.products.last['category_name'], 'Plantes vertes');
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -500));
     await tester.pumpAndSettle();
     expect(find.text('Monstera QA'), findsOneWidget);
