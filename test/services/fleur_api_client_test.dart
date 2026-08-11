@@ -358,6 +358,7 @@ void main() {
 
     final payload = await api.fetchUpcomingAlerts();
     expect(sentRequest.url.path, '/api/notifications/a-venir');
+    expect(sentRequest.url.queryParameters['days'], '42');
     expect(sentRequest.headers['Authorization'], 'Bearer jwt-notifications');
     expect(sentRequest.headers['Bypass-Tunnel-Reminder'], 'FleurApp-Mobile');
     expect(payload.summary.orders, 1);

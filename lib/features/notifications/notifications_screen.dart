@@ -17,6 +17,13 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
+  DateTime _visibleMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  DateTime _selectedDay = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    DateTime.now().day,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -51,7 +58,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(enabled
-            ? 'Rappels sonores J-1 activés.'
+            ? 'Rappels J-1 et jour J activés.'
             : 'Autorisation refusée. Activez les notifications dans Android.'),
       ));
     } catch (_) {
@@ -104,19 +111,33 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ],
                   const SizedBox(height: 18),
                   Text(
-                    'Prochaines 48 heures',
+                    'Alertes des prochaines 48 heures',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w900,
                         ),
                   ),
                   const SizedBox(height: 10),
-                  if (controller.alerts.isEmpty)
+                  if (controller.imminentAlerts.isEmpty)
                     const _EmptyAlerts()
                   else
-                    ...controller.alerts.map((alert) => Padding(
+                    ...controller.imminentAlerts.map((alert) => Padding(
                           padding: const EdgeInsets.only(bottom: 10),
                           child: _AlertCard(alert: alert),
                         )),
+                  const SizedBox(height: 14),
+                  _ArrivalCalendar(
+                    month: _visibleMonth,
+                    selectedDay: _selectedDay,
+                    arrivals: controller.arrivalAlerts,
+                    windowEnd: controller.payload?.windowEnd,
+                    onDaySelected: (day) => setState(() {
+                      _selectedDay = day;
+                    }),
+                    onMonthChanged: (month) => setState(() {
+                      _visibleMonth = month;
+                      _selectedDay = DateTime(month.year, month.month, 1);
+                    }),
+                  ),
                 ],
               ),
             );
@@ -158,7 +179,9 @@ class _ReminderStatusCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      enabled ? 'Rappels J-1 actifs' : 'Rappels à activer',
+                      enabled
+                          ? 'Rappels J-1 et jour J actifs'
+                          : 'Rappels à activer',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w900,
                           ),
@@ -166,7 +189,7 @@ class _ReminderStatusCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(enabled
                         ? '$scheduledCount rappel(s) programmé(s) avec son et vibration.'
-                        : 'Autorisez FleurApp à vous prévenir un jour avant.'),
+                        : 'Autorisez FleurApp à vous prévenir la veille et le jour des arrivages.'),
                     if (!enabled) ...[
                       const SizedBox(height: 10),
                       FilledButton.icon(
@@ -199,7 +222,7 @@ class _SummaryCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${summary.total} alerte(s)',
+              '${summary.total} événement(s) sur 42 jours',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w900,
                   ),
@@ -315,7 +338,7 @@ class _AlertCard extends StatelessWidget {
                   Text(alert.message),
                   const SizedBox(height: 8),
                   Text(
-                    '${_relativeTime(alert.hoursUntil)} · ${formatDateTime(alert.eventAt)}',
+                    '${_relativeTime(alert)} · ${formatDateTime(alert.eventAt)}',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                           color: color,
                           fontWeight: FontWeight.w800,
@@ -330,11 +353,290 @@ class _AlertCard extends StatelessWidget {
     );
   }
 
-  String _relativeTime(int hours) {
+  String _relativeTime(UpcomingAlert alert) {
+    final event = alert.eventAt.toLocal();
+    final now = DateTime.now();
+    if (event.year == now.year &&
+        event.month == now.month &&
+        event.day == now.day) {
+      return 'Aujourd’hui';
+    }
+    final hours = alert.hoursUntil;
     if (hours <= 1) return 'Dans moins d’une heure';
     if (hours < 24) return 'Dans $hours h';
     final days = (hours / 24).ceil();
     return 'Dans $days jour${days > 1 ? 's' : ''}';
+  }
+}
+
+class _ArrivalCalendar extends StatelessWidget {
+  const _ArrivalCalendar({
+    required this.month,
+    required this.selectedDay,
+    required this.arrivals,
+    required this.windowEnd,
+    required this.onDaySelected,
+    required this.onMonthChanged,
+  });
+
+  final DateTime month;
+  final DateTime selectedDay;
+  final List<UpcomingAlert> arrivals;
+  final DateTime? windowEnd;
+  final ValueChanged<DateTime> onDaySelected;
+  final ValueChanged<DateTime> onMonthChanged;
+
+  static const _months = [
+    'janvier',
+    'février',
+    'mars',
+    'avril',
+    'mai',
+    'juin',
+    'juillet',
+    'août',
+    'septembre',
+    'octobre',
+    'novembre',
+    'décembre',
+  ];
+
+  bool _sameDay(DateTime left, DateTime right) =>
+      left.year == right.year &&
+      left.month == right.month &&
+      left.day == right.day;
+
+  List<UpcomingAlert> _forDay(DateTime day) => arrivals
+      .where((alert) => _sameDay(alert.eventAt.toLocal(), day))
+      .toList(growable: false);
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final firstDay = DateTime(month.year, month.month, 1);
+    final lastDay = DateTime(month.year, month.month + 1, 0);
+    final leading = firstDay.weekday - 1;
+    final cellCount = ((leading + lastDay.day + 6) ~/ 7) * 7;
+    final currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
+    final nextMonth = DateTime(month.year, month.month + 1);
+    final canGoBack = month.isAfter(currentMonth);
+    final canGoNext = windowEnd == null ||
+        !nextMonth.isAfter(
+          DateTime(windowEnd!.toLocal().year, windowEnd!.toLocal().month),
+        );
+    final selectedArrivals = _forDay(selectedDay);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                children: [
+                  Icon(Icons.calendar_month_rounded, color: colors.primary),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      'Calendrier des arrivages',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Touchez une date pour voir les fleurs attendues.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                IconButton(
+                  tooltip: 'Mois précédent',
+                  onPressed: canGoBack
+                      ? () => onMonthChanged(
+                            DateTime(month.year, month.month - 1),
+                          )
+                      : null,
+                  icon: const Icon(Icons.chevron_left_rounded),
+                ),
+                Expanded(
+                  child: Text(
+                    '${_months[month.month - 1]} ${month.year}',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Mois suivant',
+                  onPressed: canGoNext ? () => onMonthChanged(nextMonth) : null,
+                  icon: const Icon(Icons.chevron_right_rounded),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                for (final label in ['L', 'M', 'M', 'J', 'V', 'S', 'D'])
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: cellCount,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 7,
+                childAspectRatio: .86,
+                crossAxisSpacing: 3,
+                mainAxisSpacing: 3,
+              ),
+              itemBuilder: (context, index) {
+                final dayNumber = index - leading + 1;
+                if (dayNumber < 1 || dayNumber > lastDay.day) {
+                  return const SizedBox.shrink();
+                }
+                final day = DateTime(month.year, month.month, dayNumber);
+                final count = _forDay(day).length;
+                final selected = _sameDay(day, selectedDay);
+                final today = _sameDay(day, DateTime.now());
+                return Semantics(
+                  button: true,
+                  selected: selected,
+                  label: '$dayNumber ${_months[month.month - 1]}, '
+                      '$count arrivage${count > 1 ? 's' : ''}',
+                  child: InkWell(
+                    key: ValueKey(
+                      'arrival-day-${day.year}-${day.month}-${day.day}',
+                    ),
+                    onTap: () => onDaySelected(day),
+                    borderRadius: BorderRadius.circular(12),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      decoration: BoxDecoration(
+                        color: selected ? colors.primary : null,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: selected
+                              ? colors.primary
+                              : today
+                                  ? colors.primary
+                                  : colors.outlineVariant,
+                          width: today && !selected ? 1.5 : 1,
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '$dayNumber',
+                            style: TextStyle(
+                              color: selected ? colors.onPrimary : null,
+                              fontWeight: selected || today
+                                  ? FontWeight.w900
+                                  : FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          if (count > 0)
+                            Container(
+                              constraints: const BoxConstraints(minWidth: 18),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? colors.onPrimary
+                                    : colors.primaryContainer,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '$count',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: selected
+                                      ? colors.primary
+                                      : colors.onPrimaryContainer,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            )
+                          else
+                            const SizedBox(height: 14),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Arrivages du ${selectedDay.day.toString().padLeft(2, '0')}/'
+              '${selectedDay.month.toString().padLeft(2, '0')}/${selectedDay.year}',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            if (selectedArrivals.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: colors.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text('Aucun arrivage prévu ce jour.'),
+              )
+            else
+              ...selectedArrivals.map((alert) {
+                final productName =
+                    '${alert.data['productName'] ?? alert.title.split('—').last.trim()}';
+                final stock = alert.data['stock'];
+                return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  minVerticalPadding: 10,
+                  leading: CircleAvatar(
+                    backgroundColor: colors.primaryContainer,
+                    foregroundColor: colors.onPrimaryContainer,
+                    child: const Icon(Icons.local_shipping_rounded),
+                  ),
+                  title: Text(
+                    productName,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  subtitle: Text(stock == null
+                      ? 'Arrivage programmé'
+                      : 'Stock actuel : $stock'),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
   }
 }
 

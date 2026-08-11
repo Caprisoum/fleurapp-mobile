@@ -33,6 +33,7 @@ class _CatalogAdminScreenState extends State<CatalogAdminScreen> {
     try {
       await action();
       await widget.appController.pos.loadProducts();
+      await widget.appController.refreshUpcomingAlerts();
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(success)));

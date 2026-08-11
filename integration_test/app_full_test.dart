@@ -256,12 +256,26 @@ void main() {
       await tester.tap(find.byTooltip('Alertes à venir'));
       await tester.pumpAndSettle();
       expect(find.text('Alertes à venir'), findsOneWidget);
+      expect(find.text('Rappels J-1 et jour J actifs'), findsOneWidget);
       expect(find.text('Arrivage à venir — Rose rouge'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Commande Alice Martin'),
+        180,
+        scrollable: find.byType(Scrollable).last,
+      );
       expect(find.text('Commande Alice Martin'), findsOneWidget);
-      await tester.drag(find.byType(ListView).last, const Offset(0, -450));
-      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Composant BOM insuffisant'),
+        180,
+        scrollable: find.byType(Scrollable).last,
+      );
       expect(find.text('Composant BOM insuffisant'), findsOneWidget);
-      expect(find.text('Rappels J-1 actifs'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Calendrier des arrivages'),
+        220,
+        scrollable: find.byType(Scrollable).last,
+      );
+      expect(find.text('Calendrier des arrivages'), findsOneWidget);
       expect(harness.scheduler.initialized, isTrue);
       expect(tester.takeException(), isNull);
     });

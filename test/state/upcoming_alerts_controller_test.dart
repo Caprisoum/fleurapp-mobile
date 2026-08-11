@@ -18,6 +18,9 @@ void main() {
 
     expect(controller.status, UpcomingAlertsStatus.ready);
     expect(controller.alerts.single.type, UpcomingAlertType.order);
+    expect(controller.imminentAlerts, hasLength(1));
+    expect(controller.arrivalAlerts, isEmpty);
+    expect(controller.alertCount, 1);
     expect(controller.remindersEnabled, isTrue);
     expect(controller.scheduledCount, 1);
     expect(scheduler.permissionRequests, 1);

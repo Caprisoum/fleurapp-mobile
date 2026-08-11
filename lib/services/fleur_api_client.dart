@@ -253,7 +253,7 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
   Future<UpcomingAlertsPayload> fetchUpcomingAlerts() async {
     final payload = await _sendJson(
       'GET',
-      '/api/notifications/a-venir',
+      '/api/notifications/a-venir?days=42',
       admin: true,
     );
     try {

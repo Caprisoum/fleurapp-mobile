@@ -48,13 +48,13 @@ class FlutterLocalAlertScheduler implements LocalAlertScheduler {
       : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
   static const _payloadPrefix = 'fleurapp-upcoming:';
-  static const _shownPreferenceKey = 'shown_upcoming_alerts_v1';
+  static const _shownPreferenceKey = 'shown_upcoming_alerts_v2';
   static const _notificationDetails = NotificationDetails(
     android: AndroidNotificationDetails(
       'fleurapp_upcoming',
       'Arrivages et commandes',
       channelDescription:
-          'Rappels J-1 pour les arrivages, commandes et nomenclatures.',
+          'Rappels J-1 et le jour J pour les arrivages et commandes.',
       icon: 'ic_notification',
       importance: Importance.high,
       priority: Priority.high,
@@ -134,13 +134,17 @@ class FlutterLocalAlertScheduler implements LocalAlertScheduler {
   Future<LocalAlertSyncResult> sync(UpcomingAlertsPayload payload) async {
     await initialize();
     final location = _location(payload.timeZone);
-    final alertsByNotificationId = <int, UpcomingAlert>{
-      for (final alert in payload.alerts) _notificationId(alert.id): alert,
-    };
+    final desiredNotificationIds = <int>{};
+    for (final alert in payload.alerts) {
+      desiredNotificationIds.add(_notificationId('${alert.id}:j-1'));
+      if (alert.type == UpcomingAlertType.arrival) {
+        desiredNotificationIds.add(_notificationId('${alert.id}:jour-j'));
+      }
+    }
     final pending = await _plugin.pendingNotificationRequests();
     for (final notification in pending) {
       if ((notification.payload ?? '').startsWith(_payloadPrefix) &&
-          !alertsByNotificationId.containsKey(notification.id)) {
+          !desiredNotificationIds.contains(notification.id)) {
         await _plugin.cancel(notification.id);
       }
     }
@@ -154,26 +158,65 @@ class FlutterLocalAlertScheduler implements LocalAlertScheduler {
       );
     }
 
-    final now = DateTime.now();
+    final now = tz.TZDateTime.now(location);
     final preferences = await SharedPreferences.getInstance();
-    final activeAlertIds = payload.alerts.map((alert) => alert.id).toSet();
+    final activeAlertIds = <String>{
+      for (final alert in payload.alerts) '${alert.id}:j-1',
+      for (final alert in payload.alerts)
+        if (alert.type == UpcomingAlertType.arrival) '${alert.id}:jour-j',
+    };
     final shown = (preferences.getStringList(_shownPreferenceKey) ?? const [])
         .where(activeAlertIds.contains)
         .toSet();
     var scheduled = 0;
     var shownNow = 0;
 
-    for (final entry in alertsByNotificationId.entries) {
-      final alert = entry.value;
-      await _plugin.cancel(entry.key);
-      if (!alert.eventAt.isAfter(now)) continue;
+    for (final alert in payload.alerts) {
+      final eventAt = tz.TZDateTime.from(alert.eventAt, location);
+      final remindAt = tz.TZDateTime.from(alert.remindAt, location);
+      final reminderKey = '${alert.id}:j-1';
+      final reminderId = _notificationId(reminderKey);
       final payloadValue = '$_payloadPrefix${alert.id}';
-      if (alert.remindAt.isAfter(now)) {
+      await _plugin.cancel(reminderId);
+
+      if (alert.type == UpcomingAlertType.arrival) {
+        final dayKey = '${alert.id}:jour-j';
+        final dayId = _notificationId(dayKey);
+        await _plugin.cancel(dayId);
+        if (_isBeforeDate(eventAt, now)) continue;
+
+        if (_isSameDate(eventAt, now)) {
+          if (eventAt.isAfter(now)) {
+            await _plugin.zonedSchedule(
+              dayId,
+              alert.title,
+              alert.message,
+              eventAt,
+              _notificationDetails,
+              androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+              uiLocalNotificationDateInterpretation:
+                  UILocalNotificationDateInterpretation.absoluteTime,
+              payload: payloadValue,
+            );
+            scheduled += 1;
+          } else if (shown.add(dayKey)) {
+            await _plugin.show(
+              dayId,
+              alert.title,
+              alert.message,
+              _notificationDetails,
+              payload: payloadValue,
+            );
+            shownNow += 1;
+          }
+          continue;
+        }
+
         await _plugin.zonedSchedule(
-          entry.key,
-          alert.title,
+          dayId,
+          'Aujourd’hui — ${alert.title.replaceFirst('Arrivage à venir — ', '')}',
           alert.message,
-          tz.TZDateTime.from(alert.remindAt, location),
+          eventAt,
           _notificationDetails,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
@@ -181,9 +224,26 @@ class FlutterLocalAlertScheduler implements LocalAlertScheduler {
           payload: payloadValue,
         );
         scheduled += 1;
-      } else if (shown.add(alert.id)) {
+      } else if (!eventAt.isAfter(now)) {
+        continue;
+      }
+
+      if (remindAt.isAfter(now)) {
+        await _plugin.zonedSchedule(
+          reminderId,
+          alert.title,
+          alert.message,
+          remindAt,
+          _notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          payload: payloadValue,
+        );
+        scheduled += 1;
+      } else if (shown.add(reminderKey)) {
         await _plugin.show(
-          entry.key,
+          reminderId,
           alert.title,
           alert.message,
           _notificationDetails,
@@ -199,6 +259,17 @@ class FlutterLocalAlertScheduler implements LocalAlertScheduler {
       scheduled: scheduled,
       shownNow: shownNow,
     );
+  }
+
+  bool _isSameDate(tz.TZDateTime left, tz.TZDateTime right) =>
+      left.year == right.year &&
+      left.month == right.month &&
+      left.day == right.day;
+
+  bool _isBeforeDate(tz.TZDateTime left, tz.TZDateTime right) {
+    final leftDate = DateTime(left.year, left.month, left.day);
+    final rightDate = DateTime(right.year, right.month, right.day);
+    return leftDate.isBefore(rightDate);
   }
 
   tz.Location _location(String name) {

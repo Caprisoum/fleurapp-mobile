@@ -24,7 +24,12 @@ class UpcomingAlertsController extends ChangeNotifier {
   bool _disposed = false;
 
   List<UpcomingAlert> get alerts => payload?.alerts ?? const [];
-  int get alertCount => alerts.length;
+  List<UpcomingAlert> get imminentAlerts =>
+      alerts.where((alert) => alert.hoursUntil <= 48).toList(growable: false);
+  List<UpcomingAlert> get arrivalAlerts => alerts
+      .where((alert) => alert.type == UpcomingAlertType.arrival)
+      .toList(growable: false);
+  int get alertCount => imminentAlerts.length;
 
   Future<void> initialize() async {
     try {
