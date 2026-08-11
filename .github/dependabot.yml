@@ -7,6 +7,8 @@ updates:
       day: monday
       time: "06:00"
       timezone: Europe/Paris
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     labels: [dependencies, flutter]
   - package-ecosystem: github-actions
@@ -16,5 +18,7 @@ updates:
       day: monday
       time: "06:30"
       timezone: Europe/Paris
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     labels: [dependencies, ci]
