@@ -37,6 +37,11 @@ if [[ -z "$APKSIGNER_BIN" ]]; then
   echo "apksigner est introuvable dans le SDK Android." >&2
   exit 1
 fi
+AAPT_BIN="$(dirname "$APKSIGNER_BIN")/aapt"
+if [[ ! -x "$AAPT_BIN" ]]; then
+  echo "aapt est introuvable à côté de apksigner : $AAPT_BIN" >&2
+  exit 1
+fi
 
 cd "$PROJECT_ROOT"
 "$FLUTTER_BIN" pub get --offline
@@ -53,16 +58,22 @@ for apk in "${RELEASE_APKS[@]}"; do
   "$APKSIGNER_BIN" verify --verbose --print-certs "$apk"
 done
 
-VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n 1)"
-VERSION_LABEL="${VERSION/+/-}"
 ARM64_APK="build/app/outputs/flutter-apk/app-arm64-v8a-release.apk"
 if [[ ! -f "$ARM64_APK" ]]; then
   echo "L’APK arm64-v8a destiné au Poco est introuvable." >&2
   exit 1
 fi
 
+APK_PACKAGE_INFO="$("$AAPT_BIN" dump badging "$ARM64_APK" | sed -n '1p')"
+VERSION_NAME="$(sed -n "s/.*versionName='\([^']*\)'.*/\1/p" <<< "$APK_PACKAGE_INFO")"
+VERSION_CODE="$(sed -n "s/.*versionCode='\([^']*\)'.*/\1/p" <<< "$APK_PACKAGE_INFO")"
+if [[ -z "$VERSION_NAME" || -z "$VERSION_CODE" ]]; then
+  echo "Impossible de lire la version Android dans l’APK release." >&2
+  exit 1
+fi
+
 mkdir -p "$RELEASES_DIR"
-FINAL_APK="${RELEASES_DIR}/FleurApp-beta-v${VERSION_LABEL}-arm64-release.apk"
+FINAL_APK="${RELEASES_DIR}/FleurApp-beta-v${VERSION_NAME}-${VERSION_CODE}-arm64-release.apk"
 LATEST_APK="${RELEASES_DIR}/FleurApp-beta-latest-arm64-release.apk"
 install -m 644 "$ARM64_APK" "$FINAL_APK"
 install -m 644 "$ARM64_APK" "$LATEST_APK"
