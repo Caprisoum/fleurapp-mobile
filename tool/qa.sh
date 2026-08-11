@@ -34,6 +34,10 @@ build_apk() {
   "$FLUTTER_BIN" build apk --debug --no-pub
 }
 
+build_release() {
+  "$PROJECT_ROOT/tool/build-release.sh"
+}
+
 case "${1:-all}" in
   unit)
     unit_tests
@@ -51,13 +55,16 @@ case "${1:-all}" in
   apk)
     build_apk
     ;;
+  release)
+    build_release
+    ;;
   all)
     unit_tests
     static_security
     build_apk
     ;;
   *)
-    echo "Usage : tool/qa.sh [unit|security|integration ID_TELEPHONE|apk|all]" >&2
+    echo "Usage : tool/qa.sh [unit|security|integration ID_TELEPHONE|apk|release|all]" >&2
     exit 2
     ;;
 esac

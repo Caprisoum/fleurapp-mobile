@@ -259,6 +259,31 @@ Le build `release` refuse désormais de démarrer tant qu’une clé privée dé
 n’est pas configurée ; il ne peut donc plus être signé accidentellement avec le
 certificat Android Debug.
 
+### Procédure automatisée recommandée
+
+La première fois seulement, lancez l’assistant dans un terminal. Il demande un
+mot de passe de 16 caractères minimum sans l’afficher, crée la clé hors du dépôt
+et configure Gradle sans publier le secret dans Git :
+
+```bash
+cd /home/ipsoum/fleurapp_project/fleurapp-mobile
+./tool/setup-release-signing.sh
+```
+
+Construisez ensuite les APK signés. L’APK `arm64` destiné aux téléphones récents
+est vérifié cryptographiquement puis copié dans le dossier partagé `releases` :
+
+```bash
+./tool/build-release.sh
+# ou : ./tool/qa.sh release
+```
+
+L’URL Render utilisée par défaut est `https://fleurapp-ksay.onrender.com`. Pour
+une autre instance, utilisez ponctuellement
+`API_BASE_URL=https://exemple.onrender.com ./tool/build-release.sh`.
+
+### Procédure manuelle de secours
+
 Créez une fois le dossier et la clé hors Git :
 
 ```bash
