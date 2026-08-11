@@ -54,6 +54,20 @@ void main() {
     expect(controller.isCartEmpty, isTrue);
   });
 
+  test('transmet le client choisi lors d’un encaissement immédiat', () async {
+    await controller.loadProducts();
+    controller.addProduct(controller.products.first);
+
+    await controller.checkout(
+      const CheckoutOptions(
+        paymentMethod: PaymentMethod.card,
+        customerId: 17,
+      ),
+    );
+
+    expect(api.lastCustomerId, 17);
+  });
+
   test('réutilise la clé après une coupure au résultat inconnu', () async {
     await controller.loadProducts();
     controller.addProduct(controller.products.first);
@@ -72,6 +86,7 @@ class _FakeApi implements FleurApiClient {
   List<CartItem> lastItems = const [];
   PaymentMethod? lastPaymentMethod;
   String? lastIdempotencyKey;
+  int? lastCustomerId;
   bool failUnknown = false;
 
   @override
@@ -117,6 +132,7 @@ class _FakeApi implements FleurApiClient {
     lastItems = items;
     lastPaymentMethod = paymentMethod;
     lastIdempotencyKey = idempotencyKey;
+    lastCustomerId = customerId;
     if (failUnknown) {
       throw const ApiException('Connexion interrompue.', outcomeUnknown: true);
     }

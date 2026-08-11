@@ -39,9 +39,13 @@ class _PosScreenState extends State<PosScreen> {
       await pos.loadProducts();
       if (widget.appController.adminAuthenticated) {
         try {
-          await widget.appController.admin.refreshCatalog();
+          await Future.wait([
+            widget.appController.admin.refreshCatalog(),
+            widget.appController.admin.refreshActivity(),
+          ]);
         } catch (_) {
-          // La vente est acquise ; l’actualisation admin pourra être relancée.
+          // La vente est acquise ; les données de gestion pourront être
+          // actualisées manuellement si le réseau coupe juste après.
         }
       }
       if (!mounted) return;

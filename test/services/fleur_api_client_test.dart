@@ -69,6 +69,7 @@ void main() {
       ],
       paymentMethod: PaymentMethod.card,
       idempotencyKey: 'mobile_0123456789abcdef0123456789abcdef',
+      customerId: 17,
     );
     final sentBody = jsonDecode(sentRequest.body) as Map<String, dynamic>;
     expect(sentRequest.headers['Idempotency-Key'],
@@ -76,6 +77,7 @@ void main() {
     expect(sentRequest.headers['X-Checkout-Token'],
         'fdev_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     expect(sentBody['mode_paiement'], 'Carte Bancaire - TPE');
+    expect(sentBody['clientId'], 17);
     expect((sentBody['cartItems'] as List).single, {'id': 7, 'quantity': 2});
     expect(receipt.totalCents, 1300);
     expect(receipt.lines.single.totalCents, 1300);
