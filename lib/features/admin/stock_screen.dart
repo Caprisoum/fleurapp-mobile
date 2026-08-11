@@ -483,6 +483,20 @@ class _BomEditorDialogState extends State<_BomEditorDialog> {
     );
   }
 
+  Future<void> _pickParent() async {
+    final selected = await _ProductPickerSheet.show(
+      context,
+      products: widget.products,
+      selectedId: _parentId,
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _parentId = selected.id;
+      _quantities.remove(selected.id);
+      _error = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final normalizedSearch = _search.trim().toLowerCase();
@@ -492,11 +506,8 @@ class _BomEditorDialogState extends State<_BomEditorDialog> {
             normalizedSearch.isEmpty ||
             product.name.toLowerCase().contains(normalizedSearch))
         .toList(growable: false);
-    final existingParent = widget.existing == null
-        ? null
-        : widget.products
-            .where((product) => product.id == widget.existing!.parentId)
-            .firstOrNull;
+    final selectedParent =
+        widget.products.where((product) => product.id == _parentId).firstOrNull;
 
     return AlertDialog(
       title: Text(
@@ -511,27 +522,32 @@ class _BomEditorDialogState extends State<_BomEditorDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (widget.existing == null)
-              DropdownButtonFormField<int>(
-                value: _parentId,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Bouquet ou produit composé',
-                  prefixIcon: Icon(Icons.local_florist_outlined),
+              OutlinedButton.icon(
+                key: const Key('select-bom-parent'),
+                onPressed: _pickParent,
+                icon: const Icon(Icons.local_florist_outlined),
+                label: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Bouquet ou produit composé',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        selectedParent?.name ?? 'Voir tous les produits',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                items: widget.products
-                    .map((product) => DropdownMenuItem(
-                          value: product.id,
-                          child: Text(
-                            product.name,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ))
-                    .toList(growable: false),
-                onChanged: (value) => setState(() {
-                  _parentId = value;
-                  if (value != null) _quantities.remove(value);
-                  _error = null;
-                }),
               )
             else
               ListTile(
@@ -539,7 +555,7 @@ class _BomEditorDialogState extends State<_BomEditorDialog> {
                 leading: const Icon(Icons.local_florist_outlined),
                 title: const Text('Produit composé'),
                 subtitle:
-                    Text(existingParent?.name ?? widget.existing!.parentName),
+                    Text(selectedParent?.name ?? widget.existing!.parentName),
               ),
             const SizedBox(height: 12),
             TextField(
@@ -644,6 +660,149 @@ class _BomEditorDialogState extends State<_BomEditorDialog> {
           label: const Text('Enregistrer'),
         ),
       ],
+    );
+  }
+}
+
+class _ProductPickerSheet extends StatefulWidget {
+  const _ProductPickerSheet({
+    required this.products,
+    this.selectedId,
+  });
+
+  final List<Product> products;
+  final int? selectedId;
+
+  static Future<Product?> show(
+    BuildContext context, {
+    required List<Product> products,
+    int? selectedId,
+  }) =>
+      showModalBottomSheet<Product>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        showDragHandle: true,
+        builder: (_) => _ProductPickerSheet(
+          products: products,
+          selectedId: selectedId,
+        ),
+      );
+
+  @override
+  State<_ProductPickerSheet> createState() => _ProductPickerSheetState();
+}
+
+class _ProductPickerSheetState extends State<_ProductPickerSheet> {
+  String _search = '';
+  String? _category;
+
+  @override
+  Widget build(BuildContext context) {
+    final categories = widget.products
+        .map((product) => product.category)
+        .toSet()
+        .toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    final normalizedSearch = _search.trim().toLowerCase();
+    final products = widget.products
+        .where((product) => _category == null || product.category == _category)
+        .where((product) =>
+            normalizedSearch.isEmpty ||
+            product.name.toLowerCase().contains(normalizedSearch) ||
+            product.category.toLowerCase().contains(normalizedSearch))
+        .toList(growable: false);
+
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height * .82,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: Text(
+              'Choisir le produit composé',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: TextField(
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Rechercher un produit',
+                prefixIcon: Icon(Icons.search_rounded),
+              ),
+              onChanged: (value) => setState(() => _search = value),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                ChoiceChip(
+                  key: const Key('bom-parent-category-all'),
+                  label: const Text('Tout'),
+                  selected: _category == null,
+                  onSelected: (_) => setState(() => _category = null),
+                ),
+                ...categories.map(
+                  (category) => Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: ChoiceChip(
+                      label: Text(category),
+                      selected: _category == category,
+                      onSelected: (_) => setState(() => _category = category),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: products.isEmpty
+                ? const Center(
+                    child: Text(
+                      'Aucun produit ne correspond à la recherche.',
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+                    itemCount: products.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final product = products[index];
+                      final selected = product.id == widget.selectedId;
+                      return ListTile(
+                        minVerticalPadding: 12,
+                        leading: CircleAvatar(
+                          child: Text('${product.stock ?? 0}'),
+                        ),
+                        title: Text(
+                          product.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        subtitle: Text(
+                          '${product.category} · stock ${product.stock ?? 0}',
+                        ),
+                        trailing: selected
+                            ? const Icon(Icons.check_circle_rounded)
+                            : const Icon(Icons.chevron_right_rounded),
+                        onTap: () => Navigator.pop(context, product),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

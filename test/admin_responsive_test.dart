@@ -113,8 +113,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Nouvelle nomenclature'), findsWidgets);
 
-    await tester.tap(find.byType(DropdownButtonFormField<int>));
+    await tester.tap(find.byKey(const Key('select-bom-parent')));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('bom-parent-category-all')), findsOneWidget);
+    expect(find.text('Tout'), findsOneWidget);
     await tester.tap(find.text('Orchidée épuisée').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Rose rouge').last);
