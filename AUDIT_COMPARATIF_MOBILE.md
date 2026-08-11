@@ -19,11 +19,15 @@ clôtures Z, FEC et réglages. Les écritures administratives portent un Bearer 
 stocké dans le Keystore/Keychain et les valeurs monétaires restent en centimes
 entiers de l’API jusqu’à l’affichage.
 
-Quatre demandes supplémentaires ne peuvent pas être rendues fonctionnelles par
-le seul dépôt mobile : le backend courant ne publie aucune route de création de
-client, d’historique/détail des commandes, d’annulation compensatoire ou de
-gestion des nomenclatures. Des écrans explicatifs remplacent volontairement des
-boutons factices ou des appels 404.
+Mise à jour du 11 août 2026 : le backend publie désormais la création de clients
+ainsi que la liste et le détail des commandes. L’application mobile permet donc
+d’ajouter une fiche client et de consulter l’historique persistant, y compris
+après redémarrage ou depuis un autre téléphone autorisé.
+
+Deux demandes supplémentaires nécessitent encore un contrat backend dédié :
+l’annulation compensatoire et l’administration des nomenclatures. Des écrans
+explicatifs remplacent volontairement les boutons qui modifieraient une vente
+clôturée ou appelleraient une route inexistante.
 
 ## Inventaire comparatif
 
@@ -95,14 +99,12 @@ boutons factices ou des appels 404.
 
 ## Écarts backend empêchant les fonctions supplémentaires
 
-Les routes suivantes n’existent pas dans `server.js` au moment de cet audit :
+Les routes suivantes restent à concevoir après la mise à jour du 11 août 2026 :
 
-1. `POST /api/clients` pour créer une fiche ;
-2. `GET /api/commandes` et `GET /api/commandes/:id` pour un historique complet ;
-3. une annulation comptable compensatoire, par exemple
+1. une annulation comptable compensatoire, par exemple
    `POST /api/commandes/:id/annulations`, qui crée une écriture inverse et
    réintègre le stock sans modifier une vente clôturée ;
-4. `GET/POST/PUT/DELETE /api/produits/:id/bom` pour administrer
+2. `GET/POST/PUT/DELETE /api/produits/:id/bom` pour administrer
    `produits_bom` sous transaction.
 
 Une annulation par `DELETE` ou `UPDATE` serait incompatible avec les triggers
@@ -125,7 +127,7 @@ conçus et sécurisés côté serveur avant activation mobile.
 
 ## Prochain lot backend recommandé
 
-Ajouter d’abord les quatre contrats manquants avec validation, JWT, transactions,
-verrous et tests PostgreSQL concurrents. Le mobile pourra ensuite remplacer les
-encarts explicatifs BOM/clients/ventes par les formulaires déjà structurés dans
-les modules `admin/` sans compromettre l’inaltérabilité fiscale.
+Ajouter ensuite les contrats d’annulation compensatoire et de gestion BOM avec
+validation, JWT, transactions, verrous et tests PostgreSQL concurrents. Le
+mobile pourra alors remplacer le dernier encart BOM sans compromettre
+l’inaltérabilité fiscale.

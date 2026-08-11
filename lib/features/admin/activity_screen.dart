@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/formatters.dart';
 import '../../models/admin_models.dart';
-import '../../models/order_receipt.dart';
+import '../../models/order_history.dart';
 import '../../services/api_exception.dart';
 import '../../state/admin_controller.dart';
 import '../../state/app_controller.dart';
@@ -144,9 +144,8 @@ class ActivityScreen extends StatelessWidget {
                           onClose: () => _closeDay(context),
                           onRefresh: admin.refreshActivity,
                         ),
-                        _CustomerList(customers: admin.customers),
-                        _SessionOrders(
-                            receipts: appController.pos.sessionReceipts),
+                        _CustomerList(admin: admin),
+                        _OrderHistory(admin: admin),
                         _FecExport(admin: admin),
                         BugReportsPanel(appController: appController),
                       ],
@@ -225,8 +224,8 @@ class _ClosureHistory extends StatelessWidget {
 }
 
 class _CustomerList extends StatefulWidget {
-  const _CustomerList({required this.customers});
-  final List<Customer> customers;
+  const _CustomerList({required this.admin});
+  final AdminController admin;
 
   @override
   State<_CustomerList> createState() => _CustomerListState();
@@ -235,18 +234,42 @@ class _CustomerList extends StatefulWidget {
 class _CustomerListState extends State<_CustomerList> {
   String _query = '';
 
+  Future<void> _createCustomer() async {
+    final draft = await showDialog<CustomerDraft>(
+      context: context,
+      builder: (_) => const _CustomerDialog(),
+    );
+    if (draft == null || !mounted) return;
+    try {
+      final customer = await widget.admin.createCustomer(draft);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${customer.displayName} a été ajouté.')),
+      );
+    } on ApiException catch (error) {
+      if (mounted) showApiError(context, error);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final query = _query.trim().toLowerCase();
-    final customers = widget.customers
+    final customers = widget.admin.customers
         .where((customer) =>
             query.isEmpty ||
             customer.displayName.toLowerCase().contains(query) ||
-            (customer.phone ?? '').contains(query))
+            (customer.phone ?? '').contains(query) ||
+            (customer.email ?? '').toLowerCase().contains(query))
         .toList();
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        FilledButton.icon(
+          onPressed: widget.admin.busy ? null : _createCustomer,
+          icon: const Icon(Icons.person_add_alt_1_rounded),
+          label: const Text('Ajouter un client'),
+        ),
+        const SizedBox(height: 12),
         TextField(
           onChanged: (value) => setState(() => _query = value),
           decoration: const InputDecoration(
@@ -255,21 +278,33 @@ class _CustomerListState extends State<_CustomerList> {
           ),
         ),
         const SizedBox(height: 10),
-        const Card(
-          child: ListTile(
-            leading: Icon(Icons.info_outline_rounded),
-            title: Text('Création client non exposée par l’API'),
-            subtitle: Text(
-                'GET /api/clients permet la consultation et la sélection en caisse. Aucune route POST n’existe dans le backend audité.'),
+        if (customers.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(36),
+            child: Center(child: Text('Aucun client trouvé.')),
           ),
-        ),
         ...customers.map(
           (customer) => Card(
-            child: ListTile(
+            child: ExpansionTile(
               leading:
                   const CircleAvatar(child: Icon(Icons.person_outline_rounded)),
               title: Text(customer.displayName),
-              subtitle: customer.phone == null ? null : Text(customer.phone!),
+              subtitle: Text(
+                [customer.phone, customer.email]
+                    .whereType<String>()
+                    .join(' · '),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              children: [
+                if (customer.allergies != null)
+                  _ValueRow(label: 'Allergies', value: customer.allergies!),
+                if (customer.preferences != null) ...[
+                  const SizedBox(height: 8),
+                  _ValueRow(label: 'Préférences', value: customer.preferences!),
+                ],
+              ],
             ),
           ),
         ),
@@ -278,54 +313,278 @@ class _CustomerListState extends State<_CustomerList> {
   }
 }
 
-class _SessionOrders extends StatelessWidget {
-  const _SessionOrders({required this.receipts});
-  final List<OrderReceipt> receipts;
+class _CustomerDialog extends StatefulWidget {
+  const _CustomerDialog();
 
   @override
-  Widget build(BuildContext context) => ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Card(
-            child: ListTile(
-              leading: Icon(Icons.info_outline_rounded),
-              title: Text('Ventes de cette session mobile'),
-              subtitle: Text(
-                'Le backend ne publie pas encore GET /api/commandes ni une route d’annulation compensatoire. Une vente clôturée ne doit jamais être modifiée ou supprimée.',
+  State<_CustomerDialog> createState() => _CustomerDialogState();
+}
+
+class _CustomerDialogState extends State<_CustomerDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _lastName = TextEditingController();
+  final _firstName = TextEditingController();
+  final _phone = TextEditingController();
+  final _email = TextEditingController();
+  final _allergies = TextEditingController();
+  final _preferences = TextEditingController();
+
+  @override
+  void dispose() {
+    _lastName.dispose();
+    _firstName.dispose();
+    _phone.dispose();
+    _email.dispose();
+    _allergies.dispose();
+    _preferences.dispose();
+    super.dispose();
+  }
+
+  String? _optional(TextEditingController controller) {
+    final value = controller.text.trim();
+    return value.isEmpty ? null : value;
+  }
+
+  void _submit() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    Navigator.pop(
+      context,
+      CustomerDraft(
+        lastName: _lastName.text.trim(),
+        firstName: _optional(_firstName),
+        phone: _optional(_phone),
+        email: _optional(_email),
+        allergies: _optional(_allergies),
+        preferences: _optional(_preferences),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Nouveau client'),
+        content: SizedBox(
+          width: 520,
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: _lastName,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(labelText: 'Nom *'),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Le nom est obligatoire.'
+                        : null,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _firstName,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(labelText: 'Prénom'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _phone,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(labelText: 'Téléphone'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _email,
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    decoration: const InputDecoration(labelText: 'E-mail'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _allergies,
+                    maxLines: 2,
+                    decoration: const InputDecoration(labelText: 'Allergies'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _preferences,
+                    maxLines: 3,
+                    decoration: const InputDecoration(labelText: 'Préférences'),
+                  ),
+                ],
               ),
             ),
           ),
-          if (receipts.isEmpty)
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          FilledButton.icon(
+            onPressed: _submit,
+            icon: const Icon(Icons.save_outlined),
+            label: const Text('Enregistrer'),
+          ),
+        ],
+      );
+}
+
+class _OrderHistory extends StatefulWidget {
+  const _OrderHistory({required this.admin});
+  final AdminController admin;
+
+  @override
+  State<_OrderHistory> createState() => _OrderHistoryState();
+}
+
+class _OrderHistoryState extends State<_OrderHistory> {
+  int? _loadingOrderId;
+
+  Future<void> _openOrder(OrderSummary order) async {
+    setState(() => _loadingOrderId = order.id);
+    try {
+      final detail = await widget.admin.fetchOrderDetail(order.id);
+      if (!mounted) return;
+      setState(() => _loadingOrderId = null);
+      await showDialog<void>(
+        context: context,
+        builder: (_) => _OrderDetailDialog(detail: detail),
+      );
+    } on ApiException catch (error) {
+      if (mounted) showApiError(context, error);
+    } finally {
+      if (mounted) setState(() => _loadingOrderId = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final orders = widget.admin.orders;
+    return RefreshIndicator(
+      onRefresh: widget.admin.refreshActivity,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (orders.isEmpty)
             const Padding(
               padding: EdgeInsets.all(36),
-              child: Center(child: Text('Aucune vente dans cette session.')),
+              child: Center(child: Text('Aucune commande enregistrée.')),
             )
           else
-            ...receipts.map(
-              (receipt) => Card(
-                child: ExpansionTile(
-                  leading: const Icon(Icons.receipt_long_outlined),
-                  title: Text('Commande #${receipt.orderId}'),
+            ...orders.map(
+              (order) => Card(
+                child: ListTile(
+                  minVerticalPadding: 12,
+                  leading: CircleAvatar(child: Text('#${order.id}')),
+                  title: Text(
+                    formatEuro(order.totalCents),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
                   subtitle: Text(
-                      '${formatEuro(receipt.totalCents)} · ${receipt.status ?? 'Enregistrée'}'),
-                  childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  children: [
-                    ...receipt.lines.map(
-                      (line) => _ValueRow(
-                        label: '${line.quantity} × ${line.name}',
-                        value: formatEuro(line.totalCents),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SelectableText(receipt.hash,
-                        style: const TextStyle(
-                            fontFamily: 'monospace', fontSize: 10)),
-                  ],
+                    [
+                      order.customerName ?? 'Client de passage',
+                      order.status,
+                      order.deliveryAt == null
+                          ? formatDateTime(order.createdAt)
+                          : 'Prévue ${formatDateTime(order.deliveryAt)}',
+                    ].join(' · '),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: _loadingOrderId == order.id
+                      ? const SizedBox.square(
+                          dimension: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.chevron_right_rounded),
+                  onTap:
+                      _loadingOrderId == null ? () => _openOrder(order) : null,
                 ),
               ),
             ),
         ],
-      );
+      ),
+    );
+  }
+}
+
+class _OrderDetailDialog extends StatelessWidget {
+  const _OrderDetailDialog({required this.detail});
+  final OrderDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final order = detail.summary;
+    return AlertDialog(
+      title: Text('Commande #${order.id}'),
+      content: SizedBox(
+        width: 560,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ValueRow(label: 'Statut', value: order.status),
+              const SizedBox(height: 8),
+              _ValueRow(
+                  label: 'Client',
+                  value: order.customerName ?? 'Client de passage'),
+              if (order.deliveryAt != null) ...[
+                const SizedBox(height: 8),
+                _ValueRow(
+                    label: 'Préparation/livraison',
+                    value: formatDateTime(order.deliveryAt)),
+              ],
+              const Divider(height: 28),
+              ...detail.lines.map(
+                (line) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _ValueRow(
+                    label: '${line.quantity} × ${line.name}',
+                    value: formatEuro(line.totalCents),
+                  ),
+                ),
+              ),
+              const Divider(height: 28),
+              _ValueRow(label: 'Total', value: formatEuro(order.totalCents)),
+              const SizedBox(height: 8),
+              _ValueRow(
+                  label: 'Acompte', value: formatEuro(order.depositCents)),
+              if (order.remainingCents > 0) ...[
+                const SizedBox(height: 8),
+                _ValueRow(
+                    label: 'Reste à payer',
+                    value: formatEuro(order.remainingCents)),
+              ],
+              const SizedBox(height: 8),
+              _ValueRow(label: 'Paiement', value: order.paymentMethod),
+              const SizedBox(height: 8),
+              _ValueRow(
+                label: 'Clôture Z',
+                value: order.closureId == null
+                    ? 'Non clôturée'
+                    : '#${order.closureId}',
+              ),
+              const Divider(height: 28),
+              const Text('Empreinte',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              SelectableText(
+                order.hash,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 10),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Fermer'),
+        ),
+      ],
+    );
+  }
 }
 
 class _FecExport extends StatefulWidget {

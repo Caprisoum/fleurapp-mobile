@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fleurapp_mobile/models/admin_models.dart';
 import 'package:fleurapp_mobile/models/cart_item.dart';
 import 'package:fleurapp_mobile/models/catalog_import.dart';
 import 'package:fleurapp_mobile/models/bug_report.dart';
@@ -127,6 +128,81 @@ void main() {
     )..updateAdminToken('jwt-secret-test');
     await api.fetchCustomers();
     expect(sentRequest.headers['Authorization'], 'Bearer jwt-secret-test');
+    api.close();
+  });
+
+  test('crée un client et consulte une commande persistée', () async {
+    final requests = <http.Request>[];
+    final api = RenderApiClient(
+      baseUrl: 'https://fleurapp-test.onrender.com',
+      httpClient: MockClient((request) async {
+        requests.add(request);
+        if (request.method == 'POST') {
+          return _jsonResponse({
+            'success': true,
+            'client': {
+              'id': 8,
+              'nom': 'Durand',
+              'prenom': 'Zoé',
+              'telephone': '0611223344',
+              'email': 'zoe@example.fr',
+            },
+          }, statusCode: 201);
+        }
+        final baseOrder = {
+          'id': 42,
+          'client_id': 8,
+          'client_nom': 'Durand',
+          'client_prenom': 'Zoé',
+          'date_commande': '2026-08-11T08:00:00.000Z',
+          'total_ttc': '30.00',
+          'acompte_paye': '10.00',
+          'reste_a_payer': '20.00',
+          'statut': 'À PRÉPARER',
+          'mode_paiement': 'Espèces',
+          'type_commande': 'DIFFÉRÉE',
+          'hash_transaction': 'hash-42',
+          'cloture_id': null,
+        };
+        if (request.url.path == '/api/commandes/42') {
+          return _jsonResponse({
+            ...baseOrder,
+            'lignes': [
+              {
+                'id': 3,
+                'produit_id': 7,
+                'nom': 'Bouquet pastel',
+                'quantite': 2,
+                'prix_unitaire_ttc': '15.00',
+                'taux_tva': '20.00',
+              }
+            ],
+          });
+        }
+        return _jsonResponse([
+          {...baseOrder, 'nombre_lignes': 1}
+        ]);
+      }),
+    )..updateAdminToken('jwt-client-history');
+
+    final customer = await api.createCustomer(const CustomerDraft(
+      lastName: 'Durand',
+      firstName: 'Zoé',
+      phone: '0611223344',
+      email: 'zoe@example.fr',
+    ));
+    final orders = await api.fetchOrders();
+    final detail = await api.fetchOrderDetail(orders.single.id);
+
+    expect(customer.displayName, 'Durand Zoé');
+    expect(orders.single.totalCents, 3000);
+    expect(detail.lines.single.totalCents, 3000);
+    expect(detail.lines.single.vatBasisPoints, 2000);
+    expect(
+        requests.every((request) =>
+            request.headers['Authorization'] == 'Bearer jwt-client-history'),
+        isTrue);
+    expect(requests.first.body, contains('zoe@example.fr'));
     api.close();
   });
 

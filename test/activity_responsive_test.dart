@@ -47,6 +47,29 @@ void main() {
     await tester.tap(find.text('Clients'));
     await tester.pumpAndSettle();
     expect(find.text('Martin Alice'), findsOneWidget);
+    await tester.tap(find.text('Ajouter un client'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Nom *'),
+      'Durand',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'E-mail'),
+      'durand@example.fr',
+    );
+    await tester.tap(find.text('Enregistrer'));
+    await tester.pumpAndSettle();
+    expect(find.text('Durand'), findsOneWidget);
+
+    await tester.tap(find.text('Ventes'));
+    await tester.pumpAndSettle();
+    expect(find.text('25,00\u00a0€'), findsOneWidget);
+    await tester.tap(find.text('25,00\u00a0€'));
+    await tester.pumpAndSettle();
+    expect(find.text('Commande #500'), findsOneWidget);
+    expect(find.textContaining('Bouquet champêtre'), findsOneWidget);
+    await tester.tap(find.text('Fermer'));
+    await tester.pumpAndSettle();
 
     await tester.drag(find.byType(TabBar), const Offset(-220, 0));
     await tester.pumpAndSettle();

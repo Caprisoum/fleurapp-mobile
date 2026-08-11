@@ -15,11 +15,17 @@ class Customer {
     required this.lastName,
     this.firstName,
     this.phone,
+    this.email,
+    this.allergies,
+    this.preferences,
   });
   final int id;
   final String lastName;
   final String? firstName;
   final String? phone;
+  final String? email;
+  final String? allergies;
+  final String? preferences;
   String get displayName => [lastName, firstName]
       .whereType<String>()
       .where((value) => value.isNotEmpty)
@@ -30,7 +36,37 @@ class Customer {
         lastName: '${json['nom'] ?? ''}',
         firstName: _string(json['prenom']),
         phone: _string(json['telephone']),
+        email: _string(json['email']),
+        allergies: _string(json['allergies']),
+        preferences: _string(json['preferences']),
       );
+}
+
+class CustomerDraft {
+  const CustomerDraft({
+    required this.lastName,
+    this.firstName,
+    this.phone,
+    this.email,
+    this.allergies,
+    this.preferences,
+  });
+
+  final String lastName;
+  final String? firstName;
+  final String? phone;
+  final String? email;
+  final String? allergies;
+  final String? preferences;
+
+  Map<String, dynamic> toJson() => {
+        'nom': lastName,
+        'prenom': firstName,
+        'telephone': phone,
+        'email': email,
+        'allergies': allergies,
+        'preferences': preferences,
+      };
 }
 
 class ProductDraft {

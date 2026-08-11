@@ -19,6 +19,7 @@ class FakeFleurBackend {
   int nextOrderId = 501;
   int nextProductId = 10;
   int nextCategoryId = 10;
+  int nextCustomerId = 5;
   int nextBugId = 32;
   final requests = <http.Request>[];
   final orderRequests = <http.Request>[];
@@ -119,6 +120,39 @@ class FakeFleurBackend {
       'statut': 'NOUVEAU',
       'created_at': '2026-08-10T10:00:00.000Z',
     },
+  ];
+
+  final customers = <Map<String, dynamic>>[
+    {
+      'id': 4,
+      'nom': 'Martin',
+      'prenom': 'Alice',
+      'telephone': '0612345678',
+      'email': 'alice@example.fr',
+      'allergies': 'Lys',
+      'preferences': 'Bouquets colorés',
+    }
+  ];
+
+  final orders = <Map<String, dynamic>>[
+    {
+      'id': 500,
+      'client_id': 4,
+      'client_nom': 'Martin',
+      'client_prenom': 'Alice',
+      'client_telephone': '0612345678',
+      'date_commande': '2026-08-10T09:00:00.000Z',
+      'date_livraison': '2026-08-11T10:00:00.000Z',
+      'total_ttc': '25.00',
+      'acompte_paye': '10.00',
+      'reste_a_payer': '15.00',
+      'statut': 'À PRÉPARER',
+      'mode_paiement': 'Espèces',
+      'type_commande': 'DIFFÉRÉE',
+      'hash_transaction': _hashA,
+      'nombre_lignes': 1,
+      'cloture_id': null,
+    }
   ];
 
   MockClient get client => MockClient(_handle);
@@ -242,14 +276,36 @@ class FakeFleurBackend {
       }, status: 201);
     }
     if (method == 'GET' && path == '/api/clients') {
-      return _json([
-        {
-          'id': 4,
-          'nom': 'Martin',
-          'prenom': 'Alice',
-          'telephone': '0612345678',
-        }
-      ]);
+      return _json(customers);
+    }
+    if (method == 'POST' && path == '/api/clients') {
+      final client = <String, dynamic>{
+        'id': nextCustomerId++,
+        ..._body(request),
+      };
+      customers.add(client);
+      return _json({'success': true, 'client': client}, status: 201);
+    }
+    if (method == 'GET' && path == '/api/commandes') {
+      return _json(orders);
+    }
+    if (method == 'GET' && path.startsWith('/api/commandes/')) {
+      final id = int.parse(path.split('/').last);
+      final order = orders.firstWhere((item) => item['id'] == id);
+      return _json({
+        ...order,
+        'client_email': 'alice@example.fr',
+        'lignes': [
+          {
+            'id': 1,
+            'produit_id': 2,
+            'nom': 'Bouquet champêtre',
+            'quantite': 1,
+            'prix_unitaire_ttc': '25.00',
+            'taux_tva': '20.00',
+          }
+        ],
+      });
     }
     if (method == 'GET' && path == '/api/stock/receptions') {
       return _json(receptions);
@@ -370,6 +426,7 @@ class FakeFleurBackend {
   bool _requiresAdmin(http.Request request) {
     final path = request.url.path;
     return path == '/api/clients' ||
+        (path.startsWith('/api/commandes') && request.method == 'GET') ||
         path == '/api/pertes' ||
         path == '/api/clotures' ||
         path == '/api/cloture-jour' ||

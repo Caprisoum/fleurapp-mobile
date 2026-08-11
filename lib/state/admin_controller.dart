@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/admin_models.dart';
 import '../models/bug_report.dart';
 import '../models/catalog_import.dart';
+import '../models/order_history.dart';
 import '../models/product.dart';
 import '../services/api_exception.dart';
 import '../services/fleur_api_client.dart';
@@ -16,6 +17,7 @@ class AdminController extends ChangeNotifier {
   List<Product> products = const [];
   List<ProductCategory> categories = const [];
   List<Customer> customers = const [];
+  List<OrderSummary> orders = const [];
   List<StockReception> receptions = const [];
   List<WasteRecord> wasteRecords = const [];
   List<ClosureRecord> closures = const [];
@@ -37,6 +39,7 @@ class AdminController extends ChangeNotifier {
         _apiClient.fetchProducts(),
         _apiClient.fetchCategories(),
         _apiClient.fetchCustomers(),
+        _apiClient.fetchOrders(),
         _apiClient.fetchStockReceptions(),
         _apiClient.fetchWasteRecords(),
         _apiClient.fetchClosures(),
@@ -45,10 +48,11 @@ class AdminController extends ChangeNotifier {
       products = values[0] as List<Product>;
       categories = values[1] as List<ProductCategory>;
       customers = values[2] as List<Customer>;
-      receptions = values[3] as List<StockReception>;
-      wasteRecords = values[4] as List<WasteRecord>;
-      closures = values[5] as List<ClosureRecord>;
-      bugReports = values[6] as List<BugReport>;
+      orders = values[3] as List<OrderSummary>;
+      receptions = values[4] as List<StockReception>;
+      wasteRecords = values[5] as List<WasteRecord>;
+      closures = values[6] as List<ClosureRecord>;
+      bugReports = values[7] as List<BugReport>;
       status = AdminStatus.ready;
     } on ApiException catch (exception) {
       status = AdminStatus.error;
@@ -67,6 +71,7 @@ class AdminController extends ChangeNotifier {
     products = const [];
     categories = const [];
     customers = const [];
+    orders = const [];
     receptions = const [];
     wasteRecords = const [];
     closures = const [];
@@ -86,6 +91,20 @@ class AdminController extends ChangeNotifier {
     await _action(() => _apiClient.deleteCategory(id));
     await refreshCatalog();
   }
+
+  Future<Customer> createCustomer(CustomerDraft draft) async {
+    late Customer customer;
+    await _action(() async {
+      customer = await _apiClient.createCustomer(draft);
+    });
+    customers = [...customers, customer]
+      ..sort((a, b) => a.displayName.compareTo(b.displayName));
+    _notify();
+    return customer;
+  }
+
+  Future<OrderDetail> fetchOrderDetail(int id) =>
+      _apiClient.fetchOrderDetail(id);
 
   Future<void> saveProduct(ProductDraft draft, {Product? existing}) async {
     await _action(() => existing == null
@@ -167,10 +186,12 @@ class AdminController extends ChangeNotifier {
       _apiClient.fetchWasteRecords(),
       _apiClient.fetchClosures(),
       _apiClient.fetchCustomers(),
+      _apiClient.fetchOrders(),
     ]);
     wasteRecords = values[0] as List<WasteRecord>;
     closures = values[1] as List<ClosureRecord>;
     customers = values[2] as List<Customer>;
+    orders = values[3] as List<OrderSummary>;
     _notify();
   }
 

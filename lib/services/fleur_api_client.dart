@@ -9,6 +9,7 @@ import '../models/bug_report.dart';
 import '../models/cart_item.dart';
 import '../models/catalog_import.dart';
 import '../models/order_receipt.dart';
+import '../models/order_history.dart';
 import '../models/payment_method.dart';
 import '../models/product.dart';
 import '../models/upcoming_alert.dart';
@@ -36,6 +37,9 @@ abstract class AdminApiClient {
   Future<List<Product>> fetchProducts();
   Future<List<ProductCategory>> fetchCategories();
   Future<List<Customer>> fetchCustomers();
+  Future<Customer> createCustomer(CustomerDraft customer);
+  Future<List<OrderSummary>> fetchOrders();
+  Future<OrderDetail> fetchOrderDetail(int id);
   Future<void> createCategory(String name);
   Future<void> deleteCategory(int id);
   Future<void> createProduct(ProductDraft product);
@@ -161,6 +165,43 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
   @override
   Future<List<Customer>> fetchCustomers() =>
       _getList('/api/clients', Customer.fromJson, admin: true);
+
+  @override
+  Future<Customer> createCustomer(CustomerDraft customer) async {
+    final payload = await _sendJson(
+      'POST',
+      '/api/clients',
+      body: customer.toJson(),
+      admin: true,
+      acceptedStatusCodes: const {201},
+    );
+    final created = payload['client'];
+    if (created is! Map) {
+      throw const ApiException('Client créé absent de la réponse.');
+    }
+    return Customer.fromJson(Map<String, dynamic>.from(created));
+  }
+
+  @override
+  Future<List<OrderSummary>> fetchOrders() => _getList(
+        '/api/commandes?limit=200',
+        OrderSummary.fromJson,
+        admin: true,
+      );
+
+  @override
+  Future<OrderDetail> fetchOrderDetail(int id) async {
+    final payload = await _sendJson(
+      'GET',
+      '/api/commandes/$id',
+      admin: true,
+    );
+    try {
+      return OrderDetail.fromJson(payload);
+    } on FormatException catch (error) {
+      throw ApiException(error.message);
+    }
+  }
 
   @override
   Future<List<StockReception>> fetchStockReceptions() => _getList(
