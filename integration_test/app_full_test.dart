@@ -135,9 +135,11 @@ void main() {
       await tester.tap(find.text('Catégories'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).last, 'Plantes vertes');
-      await tester.tap(find.byTooltip('Créer'));
+      await tester.tap(find.byKey(const Key('create-category-button')));
       await tester.pumpAndSettle();
       expect(find.text('Plantes vertes'), findsOneWidget);
+      expect(find.textContaining('Vous pouvez maintenant la choisir'),
+          findsOneWidget);
       await tester.tap(find.text('Terminer'));
       await tester.pumpAndSettle();
       _expectNoLayoutError(tester, 'gestion des catégories');

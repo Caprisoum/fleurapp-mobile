@@ -46,8 +46,16 @@ void main() {
     await tester.tap(find.text('Catégories'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, 'Plantes vertes');
-    await tester.tap(find.byTooltip('Créer'));
+    await tester.tap(find.text('Terminer'));
     await tester.pumpAndSettle();
+    expect(find.text('Catégorie non créée'), findsOneWidget);
+    expect(find.text('Fermer sans créer'), findsOneWidget);
+    await tester.tap(find.text('Revenir'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('create-category-button')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Vous pouvez maintenant la choisir'),
+        findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'catégories');
     await tester.tap(find.text('Terminer'));
     await tester.pumpAndSettle();

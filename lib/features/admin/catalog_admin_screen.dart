@@ -91,6 +91,7 @@ class _CatalogAdminScreenState extends State<CatalogAdminScreen> {
   Future<void> _manageCategories() async {
     await showDialog<void>(
       context: context,
+      barrierDismissible: false,
       builder: (_) => _CategoryManager(appController: widget.appController),
     );
     if (mounted) setState(() {});
@@ -1126,6 +1127,9 @@ class _CategoryManager extends StatefulWidget {
 class _CategoryManagerState extends State<_CategoryManager> {
   final _name = TextEditingController();
   String? _error;
+  String? _success;
+  bool _hasDraft = false;
+  bool _allowPop = false;
 
   @override
   void dispose() {
@@ -1136,16 +1140,65 @@ class _CategoryManagerState extends State<_CategoryManager> {
   Future<void> _create() async {
     final name = _name.text.trim();
     if (name.length < 2 || name.length > 60) {
-      setState(() => _error = 'Le nom doit contenir entre 2 et 60 caractères.');
+      setState(() {
+        _success = null;
+        _error = 'Le nom doit contenir entre 2 et 60 caractères.';
+      });
       return;
     }
     try {
       await widget.appController.admin.createCategory(name);
       _name.clear();
-      setState(() => _error = null);
+      if (!mounted) return;
+      setState(() {
+        _hasDraft = false;
+        _error = null;
+        _success =
+            '« $name » a été créée. Vous pouvez maintenant la choisir dans une fiche produit.';
+      });
     } on ApiException catch (error) {
-      setState(() => _error = error.message);
+      if (mounted) {
+        setState(() {
+          _success = null;
+          _error = error.message;
+        });
+      }
     }
+  }
+
+  Future<void> _finish() async {
+    if (_name.text.trim().isEmpty) {
+      _closeDialog();
+      return;
+    }
+    final discard = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Catégorie non créée'),
+            content: const Text(
+              'Un nom est encore saisi. Appuyez sur « Créer la catégorie » pour l’enregistrer, ou fermez sans le conserver.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Revenir'),
+              ),
+              FilledButton.tonal(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Fermer sans créer'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (discard && mounted) _closeDialog();
+  }
+
+  void _closeDialog() {
+    setState(() => _allowPop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.pop(context);
+    });
   }
 
   Future<void> _delete(ProductCategory category) async {
@@ -1158,66 +1211,126 @@ class _CategoryManagerState extends State<_CategoryManager> {
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-        animation: widget.appController.admin,
-        builder: (context, _) => AlertDialog(
-          title: const Text('Gérer les catégories'),
-          content: SizedBox(
-            width: 480,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                        child: TextField(
-                            controller: _name,
-                            decoration: const InputDecoration(
-                                labelText: 'Nouvelle catégorie'))),
-                    const SizedBox(width: 8),
-                    IconButton.filled(
+  Widget build(BuildContext context) => PopScope<void>(
+        canPop: _allowPop || !_hasDraft,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && _hasDraft) _finish();
+        },
+        child: AnimatedBuilder(
+          animation: widget.appController.admin,
+          builder: (context, _) => AlertDialog(
+            title: const Text('Gérer les catégories'),
+            content: SizedBox(
+              width: 480,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    key: const Key('new-category-name'),
+                    controller: _name,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: widget.appController.admin.busy
+                        ? null
+                        : (_) => _create(),
+                    onChanged: (value) {
+                      setState(() {
+                        _hasDraft = value.trim().isNotEmpty;
+                        _error = null;
+                        _success = null;
+                      });
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Nom de la nouvelle catégorie',
+                      hintText: 'Exemple : Fleurs d’été',
+                      prefixIcon: Icon(Icons.folder_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      key: const Key('create-category-button'),
                       onPressed:
                           widget.appController.admin.busy ? null : _create,
-                      tooltip: 'Créer',
                       icon: const Icon(Icons.add_rounded),
+                      label: Text(widget.appController.admin.busy
+                          ? 'Création en cours…'
+                          : 'Créer la catégorie'),
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Text(_error!,
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error)),
+                  ],
+                  if (_success != null) ...[
+                    const SizedBox(height: 8),
+                    Semantics(
+                      liveRegion: true,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.check_circle_outline_rounded,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer,
+                            ),
+                            const SizedBox(width: 9),
+                            Expanded(
+                              child: Text(
+                                _success!,
+                                style: TextStyle(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onPrimaryContainer,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(_error!,
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.error)),
-                ],
-                const SizedBox(height: 12),
-                Flexible(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: widget.appController.admin.categories.length,
-                    itemBuilder: (context, index) {
-                      final category =
-                          widget.appController.admin.categories[index];
-                      return ListTile(
-                        title: Text(category.name),
-                        trailing: IconButton(
-                          onPressed: widget.appController.admin.busy
-                              ? null
-                              : () => _delete(category),
-                          tooltip: 'Supprimer',
-                          icon: const Icon(Icons.delete_outline_rounded),
-                        ),
-                      );
-                    },
+                  const SizedBox(height: 12),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: widget.appController.admin.categories.length,
+                      itemBuilder: (context, index) {
+                        final category =
+                            widget.appController.admin.categories[index];
+                        return ListTile(
+                          title: Text(category.name),
+                          trailing: IconButton(
+                            onPressed: widget.appController.admin.busy
+                                ? null
+                                : () => _delete(category),
+                            tooltip: 'Supprimer',
+                            icon: const Icon(Icons.delete_outline_rounded),
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+            actions: [
+              FilledButton(
+                  onPressed: widget.appController.admin.busy ? null : _finish,
+                  child: const Text('Terminer')),
+            ],
           ),
-          actions: [
-            FilledButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Terminer')),
-          ],
         ),
       );
 }
