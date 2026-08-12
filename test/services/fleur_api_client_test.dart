@@ -85,6 +85,58 @@ void main() {
     api.close();
   });
 
+  test('envoie une vente sur mesure avec prix, TVA, nom et quantité', () async {
+    late http.Request sentRequest;
+    final api = RenderApiClient(
+      baseUrl: 'https://fleurapp-test.onrender.com',
+      httpClient: MockClient((request) async {
+        sentRequest = request;
+        return _jsonResponse({
+          'orderId': 92,
+          'totalTTC': '35.00',
+          'hash': 'hash-custom',
+          'statut': 'TERMINÉE',
+          'items': [
+            {
+              'id': null,
+              'name': 'Bouquet création client',
+              'quantity': 2,
+              'price_ttc': '17.50',
+            }
+          ],
+        }, statusCode: 201);
+      }),
+    )..updateCheckoutToken('fdev_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+
+    final receipt = await api.createOrder(
+      items: [
+        CartItem(
+          product: Product.customSale(
+            id: -1,
+            name: 'Bouquet création client',
+            priceCents: 1750,
+            vatBasisPoints: 1000,
+          ),
+          quantity: 2,
+        ),
+      ],
+      paymentMethod: PaymentMethod.cash,
+      idempotencyKey: 'mobile_custom_0123456789abcdef',
+    );
+
+    final sentBody = jsonDecode(sentRequest.body) as Map<String, dynamic>;
+    expect((sentBody['cartItems'] as List).single, {
+      'type': 'custom',
+      'name': 'Bouquet création client',
+      'price_ttc': '17.50',
+      'vat_rate': '10.00',
+      'quantity': 2,
+    });
+    expect(receipt.totalCents, 3500);
+    expect(receipt.lines.single.name, 'Bouquet création client');
+    api.close();
+  });
+
   test('active, vérifie et révoque une identité de caisse sécurisée', () async {
     const deviceToken = 'fdev_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
     final requests = <http.Request>[];

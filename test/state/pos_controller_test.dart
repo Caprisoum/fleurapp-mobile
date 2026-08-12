@@ -54,6 +54,33 @@ void main() {
     expect(controller.isCartEmpty, isTrue);
   });
 
+  test('ajoute et transmet une vente sur mesure sans toucher au catalogue',
+      () async {
+    controller.addCustomSale(
+      name: 'Bouquet création client',
+      priceCents: 1750,
+      vatBasisPoints: 1000,
+      quantity: 2,
+    );
+
+    expect(controller.cartQuantity, 2);
+    expect(controller.cartTotalCents, 3500);
+    expect(controller.cartItems.single.product.isCustomSale, isTrue);
+
+    await controller.checkout(
+      const CheckoutOptions(paymentMethod: PaymentMethod.card),
+    );
+
+    expect(api.lastItems.single.toApiJson(), {
+      'type': 'custom',
+      'name': 'Bouquet création client',
+      'price_ttc': '17.50',
+      'vat_rate': '10.00',
+      'quantity': 2,
+    });
+    expect(controller.isCartEmpty, isTrue);
+  });
+
   test('transmet le client choisi lors d’un encaissement immédiat', () async {
     await controller.loadProducts();
     controller.addProduct(controller.products.first);

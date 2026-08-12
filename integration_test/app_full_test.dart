@@ -98,6 +98,53 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('caisse : vente sur mesure avec nom, prix, TVA et quantité',
+        (tester) async {
+      final harness = await _launch(tester);
+
+      expect(find.text('Prix libre'), findsOneWidget);
+      expect(find.text('Nom et montant personnalisés'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('custom-sale-card')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Vente sur mesure'), findsOneWidget);
+      await tester.enterText(find.byKey(const Key('custom-sale-name')),
+          'Composition anniversaire');
+      await tester.enterText(
+          find.byKey(const Key('custom-sale-price')), '12,50');
+      await tester.enterText(
+          find.byKey(const Key('custom-sale-quantity')), '2');
+      await _dismissKeyboard(tester);
+      expect(find.text('25,00 €'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('add-custom-sale-button')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('ajouté au panier'), findsOneWidget);
+      await tester.tap(find.text('Panier'));
+      await tester.pumpAndSettle();
+      expect(find.text('Composition anniversaire'), findsOneWidget);
+      expect(find.text('25,00 €'), findsAtLeastNWidgets(1));
+
+      await tester.tap(find.text('Encaisser'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Espèces'));
+      await tester.tap(find.text('Confirmer l’encaissement'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ticket #501'), findsOneWidget);
+      expect(find.text('Composition anniversaire'), findsOneWidget);
+      final body = jsonDecode(harness.backend.orderRequests.single.body)
+          as Map<String, dynamic>;
+      expect((body['cartItems'] as List).single, {
+        'type': 'custom',
+        'name': 'Composition anniversaire',
+        'price_ttc': '12.50',
+        'vat_rate': '10.00',
+        'quantity': 2,
+      });
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('administration : PIN, JWT, catégories et fiche produit',
         (tester) async {
       final harness = await _launch(tester);

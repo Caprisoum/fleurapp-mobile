@@ -61,6 +61,63 @@ void main() {
     expect(find.text('Encaisser'), findsOneWidget);
   });
 
+  testWidgets('crée une vente sur mesure depuis la carte Prix libre',
+      (tester) async {
+    tester.view.physicalSize = const Size(393, 873);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final api = RenderApiClient(
+      baseUrl: '',
+      httpClient: MockClient((request) async => http.Response(
+            jsonEncode([
+              {
+                'id': 1,
+                'name': 'Rose rouge',
+                'price_ttc': '4.50',
+                'vat_rate': '20.00',
+                'category_name': 'Fleurs',
+                'stock_actuel': 4,
+              }
+            ]),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          )),
+    );
+    final controller = AppController(
+      apiClient: api,
+      settingsStore: const _MemorySettingsStore(),
+      tokenStore: _MemoryTokenStore(),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+    await tester.pumpWidget(FleurApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Prix libre'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('custom-sale-card')));
+    await tester.pumpAndSettle();
+    expect(find.text('Vente sur mesure'), findsOneWidget);
+
+    await tester.enterText(
+        find.byKey(const Key('custom-sale-name')), 'Bouquet personnalisé');
+    await tester.enterText(find.byKey(const Key('custom-sale-price')), '12,50');
+    await tester.enterText(find.byKey(const Key('custom-sale-quantity')), '2');
+    tester.testTextInput.hide();
+    await tester.pumpAndSettle();
+    expect(find.text('25,00\u00a0€'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('add-custom-sale-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Panier'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bouquet personnalisé'), findsOneWidget);
+    expect(find.text('12,50\u00a0€ × 2'), findsOneWidget);
+    expect(find.text('25,00\u00a0€'), findsAtLeastNWidgets(1));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('catalogue lisible sans actions superposées en mode sombre',
       (tester) async {
     tester.view.physicalSize = const Size(393, 873);

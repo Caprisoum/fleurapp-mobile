@@ -8,6 +8,7 @@ import '../../services/api_exception.dart';
 import '../../state/app_controller.dart';
 import '../bugs/bug_report_sheet.dart';
 import 'widgets/cart_panel.dart';
+import 'widgets/custom_sale_sheet.dart';
 import 'widgets/payment_sheet.dart';
 import 'widgets/product_catalog.dart';
 
@@ -22,6 +23,30 @@ class PosScreen extends StatefulWidget {
 
 class _PosScreenState extends State<PosScreen> {
   int _mobilePage = 0;
+
+  Future<void> _addCustomSale() async {
+    final draft = await CustomSaleSheet.show(context);
+    if (draft == null || !mounted) return;
+    widget.appController.pos.addCustomSale(
+      name: draft.name,
+      priceCents: draft.priceCents,
+      vatBasisPoints: draft.vatBasisPoints,
+      quantity: draft.quantity,
+    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('« ${draft.name} » ajouté au panier.'),
+          action: SnackBarAction(
+            label: 'Voir',
+            onPressed: () {
+              if (mounted) setState(() => _mobilePage = 1);
+            },
+          ),
+        ),
+      );
+  }
 
   Future<void> _startCheckout() async {
     final pos = widget.appController.pos;
@@ -329,6 +354,7 @@ class _PosScreenState extends State<PosScreen> {
 
   Widget _catalog() => ProductCatalog(
         controller: widget.appController.pos,
+        onAddCustomSale: _addCustomSale,
         onDeclareWaste: _declareWaste,
         onApplyAntiWaste: _applyAntiWaste,
         onReportBug: () => BugReportSheet.show(context, widget.appController),

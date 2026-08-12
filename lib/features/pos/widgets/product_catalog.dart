@@ -7,6 +7,7 @@ import 'product_card.dart';
 class ProductCatalog extends StatefulWidget {
   const ProductCatalog({
     required this.controller,
+    required this.onAddCustomSale,
     this.onDeclareWaste,
     this.onApplyAntiWaste,
     this.onReportBug,
@@ -14,6 +15,7 @@ class ProductCatalog extends StatefulWidget {
   });
 
   final PosController controller;
+  final VoidCallback onAddCustomSale;
   final ValueChanged<Product>? onDeclareWaste;
   final ValueChanged<Product>? onApplyAntiWaste;
   final VoidCallback? onReportBug;
@@ -57,6 +59,11 @@ class _ProductCatalogState extends State<ProductCatalog> {
     }
 
     final products = widget.controller.filteredProducts;
+    final search = widget.controller.searchQuery.trim().toLowerCase();
+    final showCustomSale = widget.controller.selectedCategory == null &&
+        (search.isEmpty ||
+            'prix libre vente sur mesure personnalisé personnalise création creation'
+                .contains(search));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -141,7 +148,7 @@ class _ProductCatalogState extends State<ProductCatalog> {
             ),
           ),
         Expanded(
-          child: products.isEmpty
+          child: products.isEmpty && !showCustomSale
               ? const _EmptySearch()
               : GridView.builder(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -151,9 +158,12 @@ class _ProductCatalogState extends State<ProductCatalog> {
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
                   ),
-                  itemCount: products.length,
+                  itemCount: products.length + (showCustomSale ? 1 : 0),
                   itemBuilder: (context, index) {
-                    final product = products[index];
+                    if (showCustomSale && index == 0) {
+                      return _CustomSaleCard(onTap: widget.onAddCustomSale);
+                    }
+                    final product = products[index - (showCustomSale ? 1 : 0)];
                     final canDeclareWaste = widget.onDeclareWaste != null;
                     final canApplyAntiWaste = product.canApplyAntiWaste &&
                         widget.onApplyAntiWaste != null;
@@ -204,6 +214,94 @@ class _ProductCatalogState extends State<ProductCatalog> {
                 ),
         ),
       ],
+    );
+  }
+}
+
+class _CustomSaleCard extends StatelessWidget {
+  const _CustomSaleCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      label: 'Créer une vente sur mesure à prix libre',
+      child: Card(
+        key: const Key('custom-sale-card'),
+        clipBehavior: Clip.antiAlias,
+        color: colors.tertiaryContainer.withOpacity(.72),
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: colors.tertiary,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(Icons.edit_note_rounded,
+                      color: colors.onTertiary, size: 25),
+                ),
+                const Spacer(),
+                Text(
+                  'SUR MESURE',
+                  style: TextStyle(
+                    color: colors.onTertiaryContainer,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: .8,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'Prix libre',
+                  style: TextStyle(
+                    color: colors.onTertiaryContainer,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Nom et montant personnalisés',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colors.onTertiaryContainer.withOpacity(.78),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Saisir',
+                        style: TextStyle(
+                          color: colors.onTertiaryContainer,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_rounded,
+                        color: colors.onTertiaryContainer),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

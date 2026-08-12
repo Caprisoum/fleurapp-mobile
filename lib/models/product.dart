@@ -18,6 +18,7 @@ class Product {
     this.shelfLifeDays,
     this.freshnessStatus,
     this.remainingDays,
+    this.isCustomSale = false,
   });
 
   final int id;
@@ -36,6 +37,22 @@ class Product {
   final int? shelfLifeDays;
   final String? freshnessStatus;
   final int? remainingDays;
+  final bool isCustomSale;
+
+  factory Product.customSale({
+    required int id,
+    required String name,
+    required int priceCents,
+    required int vatBasisPoints,
+  }) =>
+      Product(
+        id: id,
+        name: name,
+        priceCents: priceCents,
+        vatBasisPoints: vatBasisPoints,
+        category: 'Sur mesure',
+        isCustomSale: true,
+      );
 
   bool get isAvailable => stock == null || stock! > 0;
   bool get hasUnitConversion =>

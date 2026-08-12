@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:collection';
 import 'dart:math';
 
@@ -42,6 +43,7 @@ class PosController extends ChangeNotifier {
   bool _isSubmitting = false;
   _PendingCheckout? _pendingCheckout;
   bool _disposed = false;
+  int _nextCustomProductId = -1;
 
   List<Product> get products => List.unmodifiable(_products);
   CatalogStatus get catalogStatus => _catalogStatus;
@@ -120,6 +122,39 @@ class PosController extends ChangeNotifier {
     _invalidatePendingCheckout();
     _notify();
     return true;
+  }
+
+  void addCustomSale({
+    required String name,
+    required int priceCents,
+    required int vatBasisPoints,
+    required int quantity,
+  }) {
+    final normalizedName = name.trim();
+    if (normalizedName.length < 2 ||
+        normalizedName.length > 120 ||
+        RegExp(r'[<>\x00-\x1F\x7F]').hasMatch(normalizedName)) {
+      throw ArgumentError.value(name, 'name', 'Nom sur mesure invalide.');
+    }
+    if (priceCents < 1 || priceCents > 100000000) {
+      throw ArgumentError.value(priceCents, 'priceCents', 'Prix invalide.');
+    }
+    if (!const {550, 1000, 2000}.contains(vatBasisPoints)) {
+      throw ArgumentError.value(
+          vatBasisPoints, 'vatBasisPoints', 'TVA invalide.');
+    }
+    if (quantity < 1 || quantity > 999) {
+      throw ArgumentError.value(quantity, 'quantity', 'Quantité invalide.');
+    }
+    final product = Product.customSale(
+      id: _nextCustomProductId--,
+      name: normalizedName,
+      priceCents: priceCents,
+      vatBasisPoints: vatBasisPoints,
+    );
+    _cart[product.id] = CartItem(product: product, quantity: quantity);
+    _invalidatePendingCheckout();
+    _notify();
   }
 
   void increment(Product product) => addProduct(product);
@@ -202,7 +237,7 @@ class PosController extends ChangeNotifier {
     final items = _cart.values.toList()
       ..sort((a, b) => a.product.id.compareTo(b.product.id));
     return [
-      items.map((item) => '${item.product.id}:${item.quantity}').join(','),
+      jsonEncode(items.map((item) => item.toApiJson()).toList()),
       options.paymentMethod.apiValue,
       options.customerId ?? '',
       options.isFutureOrder,

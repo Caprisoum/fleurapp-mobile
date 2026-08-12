@@ -251,6 +251,18 @@ class FakeFleurBackend {
       final items = <Map<String, dynamic>>[];
       for (final raw in rawItems) {
         final line = Map<String, dynamic>.from(raw as Map);
+        if (line['type'] == 'custom') {
+          final quantity = line['quantity'] as int;
+          final cents = _moneyToCents(line['price_ttc']);
+          totalCents += cents * quantity;
+          items.add({
+            'id': null,
+            'name': line['name'],
+            'quantity': quantity,
+            'price_ttc': line['price_ttc'],
+          });
+          continue;
+        }
         final product = products.firstWhere(
           (item) => item['id'] == line['id'],
         );
