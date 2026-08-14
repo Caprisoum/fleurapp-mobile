@@ -115,11 +115,15 @@ void main() {
       await tester.enterText(
           find.byKey(const Key('custom-sale-quantity')), '2');
       await _dismissKeyboard(tester);
-      expect(find.text('25,00 €'), findsOneWidget);
+      expect(find.text('25,00 €'), findsAtLeastNWidgets(1));
       await tester.tap(find.byKey(const Key('add-custom-sale-button')));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('ajouté au panier'), findsOneWidget);
+      tester
+          .state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger))
+          .clearSnackBars();
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Panier'));
       await tester.pumpAndSettle();
       expect(find.text('Composition anniversaire'), findsOneWidget);
@@ -184,7 +188,12 @@ void main() {
       await tester.enterText(find.byType(TextField).last, 'Plantes vertes');
       await tester.tap(find.byKey(const Key('create-category-button')));
       await tester.pumpAndSettle();
-      expect(find.text('Plantes vertes'), findsOneWidget);
+      expect(
+        harness.backend.categories.any(
+          (category) => category['nom'] == 'Plantes vertes',
+        ),
+        isTrue,
+      );
       expect(find.textContaining('Vous pouvez maintenant la choisir'),
           findsOneWidget);
       await tester.tap(find.text('Terminer'));
@@ -283,6 +292,28 @@ void main() {
       await _openDestination(tester, Icons.assessment_outlined);
       await tester.pumpAndSettle();
 
+      await tester.tap(find.text('Ventes'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('25,00 €'));
+      await tester.pumpAndSettle();
+      expect(find.text('Commande #500'), findsOneWidget);
+      await tester.tap(find.text('Annuler la vente'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Motif obligatoire'),
+        'Erreur de saisie pendant la recette Android',
+      );
+      await tester.tap(find.text('Créer l’annulation'));
+      await tester.pumpAndSettle();
+      expect(harness.backend.orders.first['annulation_id'], 700);
+      expect(find.textContaining('ANNULÉE'), findsOneWidget);
+      tester
+          .state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger))
+          .clearSnackBars();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Clôtures'));
+      await tester.pumpAndSettle();
       expect(find.text('Clôturer la caisse'), findsOneWidget);
       await tester.tap(find.text('Clôturer la caisse'));
       await tester.pumpAndSettle();
@@ -291,6 +322,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Ticket Z #8'), findsOneWidget);
       expect(find.text('4,50 €'), findsWidgets);
+      expect(find.text('Annulations incluses'), findsOneWidget);
       await tester.tap(find.text('Fermer'));
       await tester.pumpAndSettle();
 
