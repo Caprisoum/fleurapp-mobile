@@ -111,6 +111,23 @@ class AdminController extends ChangeNotifier {
   Future<OrderDetail> fetchOrderDetail(int id) =>
       _apiClient.fetchOrderDetail(id);
 
+  Future<CancellationReceipt> cancelOrder({
+    required int orderId,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    late CancellationReceipt receipt;
+    await _action(() async {
+      receipt = await _apiClient.cancelOrder(
+        orderId: orderId,
+        reason: reason,
+        idempotencyKey: idempotencyKey,
+      );
+    });
+    await Future.wait([refreshActivity(), refreshCatalog()]);
+    return receipt;
+  }
+
   Future<void> saveProduct(ProductDraft draft, {Product? existing}) async {
     await _action(() => existing == null
         ? _apiClient.createProduct(draft)

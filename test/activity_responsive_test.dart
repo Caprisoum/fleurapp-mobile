@@ -68,7 +68,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Commande #500'), findsOneWidget);
     expect(find.textContaining('Bouquet champêtre'), findsOneWidget);
-    await tester.tap(find.text('Fermer'));
+    await tester.tap(find.text('Annuler la vente'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Motif obligatoire'),
+      'Erreur de saisie pendant la recette',
+    );
+    await tester.tap(find.text('Créer l’annulation'));
+    await tester.pumpAndSettle();
+    expect(backend.orders.first['annulation_id'], 700);
+    expect(find.textContaining('ANNULÉE'), findsOneWidget);
+    tester
+        .state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger))
+        .clearSnackBars();
     await tester.pumpAndSettle();
 
     await tester.drag(find.byType(TabBar), const Offset(-220, 0));
@@ -86,6 +98,8 @@ void main() {
     expect(find.text('Contraste du catalogue'), findsOneWidget);
     final bugStatus = find.byType(DropdownButtonFormField<BugReportStatus>);
     await tester.ensureVisible(bugStatus);
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -120));
+    await tester.pumpAndSettle();
     await tester.tap(bugStatus);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Résolu').last);

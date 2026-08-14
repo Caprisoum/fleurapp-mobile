@@ -261,6 +261,41 @@ void main() {
     api.close();
   });
 
+  test('annule une commande avec JWT et clé d’idempotence', () async {
+    late http.Request sentRequest;
+    final api = RenderApiClient(
+      baseUrl: 'https://fleurapp-test.onrender.com',
+      httpClient: MockClient((request) async {
+        sentRequest = request;
+        return _jsonResponse({
+          'success': true,
+          'cancellationId': 12,
+          'orderId': 42,
+          'cancelledAt': '2026-08-14T10:00:00.000Z',
+          'refundedAmount': '10.00',
+          'reason': 'Erreur de saisie',
+          'hash': 'cancellation-hash',
+        }, statusCode: 201);
+      }),
+    )..updateAdminToken('jwt-cancellation');
+
+    final receipt = await api.cancelOrder(
+      orderId: 42,
+      reason: 'Erreur de saisie',
+      idempotencyKey: 'mobile_cancel_0123456789abcdef',
+    );
+
+    expect(sentRequest.method, 'POST');
+    expect(sentRequest.url.path, '/api/commandes/42/annulations');
+    expect(sentRequest.headers['Authorization'], 'Bearer jwt-cancellation');
+    expect(sentRequest.headers['Idempotency-Key'],
+        'mobile_cancel_0123456789abcdef');
+    expect(jsonDecode(sentRequest.body), {'motif': 'Erreur de saisie'});
+    expect(receipt.id, 12);
+    expect(receipt.refundedCents, 1000);
+    api.close();
+  });
+
   test('liste, remplace et supprime une nomenclature avec le JWT admin',
       () async {
     final requests = <http.Request>[];

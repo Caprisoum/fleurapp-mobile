@@ -22,7 +22,8 @@ backend Express/PostgreSQL FleurApp déployé sur Render.
   modification, suppression et capacité réellement disponible ;
 - activité : clôture Z définitive, totaux/TVA/modes de paiement, historique,
   création et consultation des clients, historique serveur des commandes avec
-  détail des lignes et export FEC consultable/copiable ;
+  détail des lignes, annulation compensatoire avant Ticket Z avec motif et
+  restitution exacte du stock, et export FEC consultable/copiable ;
 - centre d’alertes administrateur : arrivages, commandes différées et besoins
   BOM sur 48 heures, badge dans l’en-tête et rappels locaux sonores à J-1 ;
 - signalement de bugs public depuis Réglages, la connexion et les erreurs réseau,

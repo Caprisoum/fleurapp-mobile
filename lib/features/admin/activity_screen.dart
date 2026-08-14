@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -68,6 +70,13 @@ class ActivityScreen extends StatelessWidget {
                   _ValueRow(
                       label: 'Transactions',
                       value: '${receipt.transactionCount}'),
+                  if (receipt.cancellationCount > 0) ...[
+                    const SizedBox(height: 8),
+                    _ValueRow(
+                      label: 'Annulations incluses',
+                      value: '${receipt.cancellationCount}',
+                    ),
+                  ],
                   if (receipt.totalsByPayment.isNotEmpty) ...[
                     const Divider(height: 28),
                     ...receipt.totalsByPayment.entries.map(
@@ -204,8 +213,9 @@ class _ClosureHistory extends StatelessWidget {
                     leading: CircleAvatar(child: Text('#${closure.id}')),
                     title: Text(formatEuro(closure.totalCents),
                         style: const TextStyle(fontWeight: FontWeight.w800)),
-                    subtitle: Text(
-                        '${closure.transactionCount} transaction(s) · ${formatDateTime(closure.date)}'),
+                    subtitle: Text('${closure.transactionCount} transaction(s)'
+                        '${closure.cancellationCount > 0 ? ' · ${closure.cancellationCount} annulation(s)' : ''}'
+                        ' · ${formatDateTime(closure.date)}'),
                     childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     children: [
                       _ValueRow(
@@ -440,6 +450,15 @@ class _OrderHistory extends StatefulWidget {
 
 class _OrderHistoryState extends State<_OrderHistory> {
   int? _loadingOrderId;
+  final Map<int, ({String key, String reason})> _pendingCancellations = {};
+
+  String _newIdempotencyKey() {
+    final random = Random.secure();
+    return List.generate(
+      24,
+      (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join();
+  }
 
   Future<void> _openOrder(OrderSummary order) async {
     setState(() => _loadingOrderId = order.id);
@@ -447,11 +466,53 @@ class _OrderHistoryState extends State<_OrderHistory> {
       final detail = await widget.admin.fetchOrderDetail(order.id);
       if (!mounted) return;
       setState(() => _loadingOrderId = null);
-      await showDialog<void>(
+      final cancelRequested = await showDialog<bool>(
         context: context,
         builder: (_) => _OrderDetailDialog(detail: detail),
       );
+      if (cancelRequested == true && mounted) {
+        await _cancelOrder(detail.summary);
+      }
     } on ApiException catch (error) {
+      if (mounted) showApiError(context, error);
+    } finally {
+      if (mounted) setState(() => _loadingOrderId = null);
+    }
+  }
+
+  Future<String?> _askCancellationReason(OrderSummary order) async {
+    return showDialog<String>(
+      context: context,
+      builder: (_) => _CancellationReasonDialog(orderId: order.id),
+    );
+  }
+
+  Future<void> _cancelOrder(OrderSummary order) async {
+    var pending = _pendingCancellations[order.id];
+    if (pending == null) {
+      final reason = await _askCancellationReason(order);
+      if (reason == null || !mounted) return;
+      pending = (key: _newIdempotencyKey(), reason: reason);
+      _pendingCancellations[order.id] = pending;
+    }
+    setState(() => _loadingOrderId = order.id);
+    try {
+      final receipt = await widget.admin.cancelOrder(
+        orderId: order.id,
+        reason: pending.reason,
+        idempotencyKey: pending.key,
+      );
+      _pendingCancellations.remove(order.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Annulation #${receipt.id} enregistrée · ${formatEuro(receipt.refundedCents)} remboursés · stock réintégré.',
+          ),
+        ),
+      );
+    } on ApiException catch (error) {
+      if (!error.outcomeUnknown) _pendingCancellations.remove(order.id);
       if (mounted) showApiError(context, error);
     } finally {
       if (mounted) setState(() => _loadingOrderId = null);
@@ -478,8 +539,15 @@ class _OrderHistoryState extends State<_OrderHistory> {
                   minVerticalPadding: 12,
                   leading: CircleAvatar(child: Text('#${order.id}')),
                   title: Text(
-                    formatEuro(order.totalCents),
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    order.isCancelled
+                        ? '${formatEuro(order.totalCents)} · ANNULÉE'
+                        : formatEuro(order.totalCents),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: order.isCancelled
+                          ? Theme.of(context).colorScheme.error
+                          : null,
+                    ),
                   ),
                   subtitle: Text(
                     [
@@ -509,6 +577,84 @@ class _OrderHistoryState extends State<_OrderHistory> {
   }
 }
 
+class _CancellationReasonDialog extends StatefulWidget {
+  const _CancellationReasonDialog({required this.orderId});
+
+  final int orderId;
+
+  @override
+  State<_CancellationReasonDialog> createState() =>
+      _CancellationReasonDialogState();
+}
+
+class _CancellationReasonDialogState extends State<_CancellationReasonDialog> {
+  final TextEditingController _controller = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final reason = _controller.text.trim();
+    if (reason.length < 3) {
+      setState(() => _error = 'Saisissez au moins 3 caractères.');
+      return;
+    }
+    Navigator.pop(context, reason);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text('Annuler la commande #${widget.orderId} ?'),
+        content: SingleChildScrollView(
+          child: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Cette opération crée une écriture compensatoire définitive et réintègre le stock. La vente d’origine reste inchangée.',
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _controller,
+                  autofocus: true,
+                  minLines: 2,
+                  maxLines: 4,
+                  maxLength: 300,
+                  decoration: InputDecoration(
+                    labelText: 'Motif obligatoire',
+                    hintText: 'Ex. erreur de saisie ou vente abandonnée',
+                    errorText: _error,
+                  ),
+                  onSubmitted: (_) => _submit(),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Conserver la vente'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: _submit,
+            icon: const Icon(Icons.undo_rounded),
+            label: const Text('Créer l’annulation'),
+          ),
+        ],
+      );
+}
+
 class _OrderDetailDialog extends StatelessWidget {
   const _OrderDetailDialog({required this.detail});
   final OrderDetail detail;
@@ -525,6 +671,35 @@ class _OrderDetailDialog extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _ValueRow(label: 'Statut', value: order.status),
+              if (order.isCancelled) ...[
+                const SizedBox(height: 12),
+                Card(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Annulation #${order.cancellationId}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            color:
+                                Theme.of(context).colorScheme.onErrorContainer,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _ValueRow(
+                          label: 'Remboursement',
+                          value: formatEuro(order.refundedCents ?? 0),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(order.cancellationReason ?? 'Motif non renseigné'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
               _ValueRow(
                   label: 'Client',
@@ -578,8 +753,18 @@ class _OrderDetailDialog extends StatelessWidget {
         ),
       ),
       actions: [
+        if (order.canCancel)
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.undo_rounded),
+            label: const Text('Annuler la vente'),
+          ),
         FilledButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(context, false),
           child: const Text('Fermer'),
         ),
       ],

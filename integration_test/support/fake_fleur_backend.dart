@@ -104,6 +104,7 @@ class FakeFleurBackend {
       'total_ca_ttc': '129.50',
       'total_tva': '21.58',
       'nombre_transactions': 8,
+      'nombre_annulations': 0,
       'hash_cloture': _hashB,
       'date_cloture': '2026-08-09T19:00:00.000Z',
     },
@@ -150,6 +151,7 @@ class FakeFleurBackend {
       'mode_paiement': 'Espèces',
       'type_commande': 'DIFFÉRÉE',
       'hash_transaction': _hashA,
+      'stock_snapshot_version': 1,
       'nombre_lignes': 1,
       'cloture_id': null,
     }
@@ -319,6 +321,31 @@ class FakeFleurBackend {
     if (method == 'GET' && path == '/api/commandes') {
       return _json(orders);
     }
+    if (method == 'POST' &&
+        RegExp(r'^/api/commandes/\d+/annulations$').hasMatch(path)) {
+      final id = int.parse(path.split('/')[3]);
+      final order = orders.firstWhere((item) => item['id'] == id);
+      if (order['annulation_id'] != null || order['cloture_id'] != null) {
+        return _json({'error': 'Commande non annulable.'}, status: 409);
+      }
+      final body = _body(request);
+      order
+        ..['annulation_id'] = 700
+        ..['date_annulation'] = '2026-08-10T10:00:00.000Z'
+        ..['annulation_motif'] = body['motif']
+        ..['mode_remboursement'] = order['mode_paiement']
+        ..['montant_rembourse'] = order['acompte_paye']
+        ..['hash_annulation'] = _hashB;
+      return _json({
+        'success': true,
+        'cancellationId': 700,
+        'orderId': id,
+        'cancelledAt': order['date_annulation'],
+        'refundedAmount': order['montant_rembourse'],
+        'reason': body['motif'],
+        'hash': _hashB,
+      }, status: 201);
+    }
     if (method == 'GET' && path.startsWith('/api/commandes/')) {
       final id = int.parse(path.split('/').last);
       final order = orders.firstWhere((item) => item['id'] == id);
@@ -473,6 +500,7 @@ class FakeFleurBackend {
         'total_ca_ttc': '4.50',
         'total_tva': '0.75',
         'nombre_transactions': 1,
+        'nombre_annulations': 1,
         'hash_cloture': _hashA,
         'date_cloture': '2026-08-10T20:20:00.000Z',
       });
@@ -481,6 +509,7 @@ class FakeFleurBackend {
         'totalCA': '4.50',
         'totalTVA': '0.75',
         'nombre_transactions': 1,
+        'nombre_annulations': 1,
         'hashZ': _hashA,
         'caParMode': {'Espèces': '4.50'},
       });
@@ -498,7 +527,7 @@ class FakeFleurBackend {
   bool _requiresAdmin(http.Request request) {
     final path = request.url.path;
     return path == '/api/clients' ||
-        (path.startsWith('/api/commandes') && request.method == 'GET') ||
+        path.startsWith('/api/commandes') ||
         path == '/api/pertes' ||
         path == '/api/clotures' ||
         path == '/api/cloture-jour' ||

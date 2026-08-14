@@ -171,6 +171,7 @@ class ClosureRecord {
     required this.totalCents,
     required this.vatCents,
     required this.transactionCount,
+    required this.cancellationCount,
     required this.hash,
     this.date,
   });
@@ -178,6 +179,7 @@ class ClosureRecord {
   final int totalCents;
   final int vatCents;
   final int transactionCount;
+  final int cancellationCount;
   final String hash;
   final DateTime? date;
 
@@ -186,6 +188,7 @@ class ClosureRecord {
         totalCents: moneyToCents(json['total_ca_ttc'], field: 'Total clôture'),
         vatCents: moneyToCents(json['total_tva'], field: 'TVA clôture'),
         transactionCount: _int(json['nombre_transactions']),
+        cancellationCount: _int(json['nombre_annulations']),
         hash: '${json['hash_cloture'] ?? ''}',
         date: DateTime.tryParse('${json['date_cloture'] ?? ''}'),
       );
@@ -197,6 +200,7 @@ class ClosureReceipt {
     required this.totalCents,
     required this.vatCents,
     required this.transactionCount,
+    required this.cancellationCount,
     required this.hash,
     required this.totalsByPayment,
   });
@@ -204,6 +208,7 @@ class ClosureReceipt {
   final int totalCents;
   final int vatCents;
   final int transactionCount;
+  final int cancellationCount;
   final String hash;
   final Map<String, int> totalsByPayment;
 
@@ -214,6 +219,7 @@ class ClosureReceipt {
       totalCents: moneyToCents(json['totalCA'], field: 'Total Z'),
       vatCents: moneyToCents(json['totalTVA'], field: 'TVA Z'),
       transactionCount: _int(json['nombre_transactions']),
+      cancellationCount: _int(json['nombre_annulations']),
       hash: '${json['hashZ'] ?? ''}',
       totalsByPayment: rawPayments is Map
           ? rawPayments.map(

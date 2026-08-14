@@ -11,12 +11,20 @@ class OrderSummary {
     required this.orderType,
     required this.hash,
     required this.lineCount,
+    required this.stockSnapshotVersion,
     this.customerId,
     this.customerName,
     this.customerPhone,
     this.createdAt,
     this.deliveryAt,
     this.closureId,
+    this.cancellationId,
+    this.cancelledAt,
+    this.cancellationReason,
+    this.refundMethod,
+    this.refundedCents,
+    this.cancellationHash,
+    this.cancellationClosureId,
   });
 
   final int id;
@@ -33,9 +41,19 @@ class OrderSummary {
   final String orderType;
   final String hash;
   final int lineCount;
+  final int stockSnapshotVersion;
   final int? closureId;
+  final int? cancellationId;
+  final DateTime? cancelledAt;
+  final String? cancellationReason;
+  final String? refundMethod;
+  final int? refundedCents;
+  final String? cancellationHash;
+  final int? cancellationClosureId;
 
   bool get isClosed => closureId != null;
+  bool get isCancelled => cancellationId != null;
+  bool get canCancel => !isClosed && !isCancelled && stockSnapshotVersion == 1;
 
   factory OrderSummary.fromJson(Map<String, dynamic> json) => OrderSummary(
         id: _int(json['id'], 'Commande'),
@@ -54,7 +72,48 @@ class OrderSummary {
         orderType: '${json['type_commande'] ?? ''}',
         hash: '${json['hash_transaction'] ?? ''}',
         lineCount: _nullableInt(json['nombre_lignes']) ?? 0,
+        stockSnapshotVersion:
+            _nullableNonNegativeInt(json['stock_snapshot_version']) ?? 0,
         closureId: _nullableInt(json['cloture_id']),
+        cancellationId: _nullableInt(json['annulation_id']),
+        cancelledAt: _date(json['date_annulation']),
+        cancellationReason: _string(json['annulation_motif']),
+        refundMethod: _string(json['mode_remboursement']),
+        refundedCents: json['montant_rembourse'] == null
+            ? null
+            : moneyToCents(json['montant_rembourse'],
+                field: 'Montant remboursé'),
+        cancellationHash: _string(json['hash_annulation']),
+        cancellationClosureId: _nullableInt(json['annulation_cloture_id']),
+      );
+}
+
+class CancellationReceipt {
+  const CancellationReceipt({
+    required this.id,
+    required this.orderId,
+    required this.refundedCents,
+    required this.reason,
+    required this.hash,
+    this.cancelledAt,
+  });
+
+  final int id;
+  final int orderId;
+  final int refundedCents;
+  final String reason;
+  final String hash;
+  final DateTime? cancelledAt;
+
+  factory CancellationReceipt.fromJson(Map<String, dynamic> json) =>
+      CancellationReceipt(
+        id: _int(json['cancellationId'], 'Annulation'),
+        orderId: _int(json['orderId'], 'Commande'),
+        refundedCents:
+            moneyToCents(json['refundedAmount'], field: 'Remboursement'),
+        reason: '${json['reason'] ?? ''}',
+        hash: '${json['hash'] ?? ''}',
+        cancelledAt: _date(json['cancelledAt']),
       );
 }
 
@@ -128,6 +187,12 @@ int _int(Object? value, String field) {
 int? _nullableInt(Object? value) {
   if (value == null || '$value'.isEmpty) return null;
   return value is num ? value.toInt() : int.tryParse('$value');
+}
+
+int? _nullableNonNegativeInt(Object? value) {
+  if (value == null || '$value'.isEmpty) return null;
+  final parsed = value is num ? value.toInt() : int.tryParse('$value');
+  return parsed != null && parsed >= 0 ? parsed : null;
 }
 
 String? _string(Object? value) {

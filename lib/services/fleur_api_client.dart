@@ -41,6 +41,11 @@ abstract class AdminApiClient {
   Future<Customer> createCustomer(CustomerDraft customer);
   Future<List<OrderSummary>> fetchOrders();
   Future<OrderDetail> fetchOrderDetail(int id);
+  Future<CancellationReceipt> cancelOrder({
+    required int orderId,
+    required String reason,
+    required String idempotencyKey,
+  });
   Future<List<BomRecipe>> fetchBomRecipes();
   Future<BomRecipe> saveBomRecipe(BomRecipeDraft recipe);
   Future<void> deleteBomRecipe(int parentId);
@@ -202,6 +207,30 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
     );
     try {
       return OrderDetail.fromJson(payload);
+    } on FormatException catch (error) {
+      throw ApiException(error.message);
+    }
+  }
+
+  @override
+  Future<CancellationReceipt> cancelOrder({
+    required int orderId,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    final payload = await _sendJson(
+      'POST',
+      '/api/commandes/$orderId/annulations',
+      body: {'motif': reason},
+      admin: true,
+      extraHeaders: {'Idempotency-Key': idempotencyKey},
+      acceptedStatusCodes: const {200, 201},
+      outcomeCouldBeUnknown: true,
+      unknownOutcomeMessage:
+          'Connexion interrompue : l’annulation a peut-être été enregistrée. Réessayez sans modifier le motif.',
+    );
+    try {
+      return CancellationReceipt.fromJson(payload);
     } on FormatException catch (error) {
       throw ApiException(error.message);
     }
@@ -516,6 +545,7 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
     Map<String, String> extraHeaders = const {},
     Set<int> acceptedStatusCodes = const {200},
     bool outcomeCouldBeUnknown = false,
+    String? unknownOutcomeMessage,
   }) async {
     final request = http.Request(method, _uri(path))
       ..headers.addAll(_headers(admin: admin, checkout: checkout))
@@ -525,6 +555,7 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
       () => _httpClient.send(request).then(http.Response.fromStream),
       acceptedStatusCodes: acceptedStatusCodes,
       outcomeCouldBeUnknown: outcomeCouldBeUnknown,
+      unknownOutcomeMessage: unknownOutcomeMessage,
     );
     final payload = _decodeJson(response);
     if (payload is! Map) throw const ApiException('Réponse API inattendue.');
@@ -565,6 +596,7 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
     Future<http.Response> Function() send, {
     Set<int> acceptedStatusCodes = const {200},
     bool outcomeCouldBeUnknown = false,
+    String? unknownOutcomeMessage,
   }) async {
     try {
       final response = await send().timeout(timeout);
@@ -581,27 +613,30 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
       rethrow;
     } on TimeoutException {
       throw ApiException(
-        outcomeCouldBeUnknown
-            ? 'Réponse perdue : la vente a peut-être été enregistrée. '
-                'Réessayez sans modifier le panier.'
-            : 'Le serveur met trop de temps à répondre. Réessayez dans un instant.',
+        unknownOutcomeMessage ??
+            (outcomeCouldBeUnknown
+                ? 'Réponse perdue : la vente a peut-être été enregistrée. '
+                    'Réessayez sans modifier le panier.'
+                : 'Le serveur met trop de temps à répondre. Réessayez dans un instant.'),
         outcomeUnknown: outcomeCouldBeUnknown,
       );
     } on http.ClientException catch (error) {
       throw ApiException(
-        outcomeCouldBeUnknown
-            ? 'Connexion interrompue : l’état de la vente est inconnu. '
-                'Réessayez sans modifier le panier.'
-            : 'Connexion au serveur impossible : ${error.message}',
+        unknownOutcomeMessage ??
+            (outcomeCouldBeUnknown
+                ? 'Connexion interrompue : l’état de la vente est inconnu. '
+                    'Réessayez sans modifier le panier.'
+                : 'Connexion au serveur impossible : ${error.message}'),
         outcomeUnknown: outcomeCouldBeUnknown,
       );
     } on FormatException {
       throw const ApiException('Adresse du backend invalide.');
     } catch (_) {
       throw ApiException(
-        outcomeCouldBeUnknown
-            ? 'Connexion interrompue : l’état de la vente est inconnu.'
-            : 'Connexion au serveur impossible.',
+        unknownOutcomeMessage ??
+            (outcomeCouldBeUnknown
+                ? 'Connexion interrompue : l’état de la vente est inconnu.'
+                : 'Connexion au serveur impossible.'),
         outcomeUnknown: outcomeCouldBeUnknown,
       );
     }
