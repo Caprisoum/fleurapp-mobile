@@ -196,7 +196,7 @@ class _CustomSaleSheetState extends State<CustomSaleSheet> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    value: _vatBasisPoints,
+                    initialValue: _vatBasisPoints,
                     isExpanded: true,
                     decoration: const InputDecoration(labelText: 'TVA'),
                     items: const [

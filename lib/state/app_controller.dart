@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/config/app_config.dart';
 import '../services/admin_token_store.dart';
 import '../services/checkout_device_token_store.dart';
 import '../services/api_exception.dart';
@@ -161,6 +162,12 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> updateApiBaseUrl(String value) async {
+    if (!AppConfig.allowServerConfiguration) {
+      throw const ApiException(
+        'La configuration du serveur est verrouillée dans cette version.',
+        statusCode: 403,
+      );
+    }
     final normalized = RenderApiClient.normalizeBaseUrl(value);
     if (_apiClient.hasCheckoutToken) {
       try {

@@ -28,8 +28,8 @@ backend Express/PostgreSQL FleurApp déployé sur Render.
   BOM sur 48 heures, badge dans l’en-tête et rappels locaux sonores à J-1 ;
 - signalement de bugs public depuis Réglages, la connexion et les erreurs réseau,
   avec version/OS/modèle automatiques et suivi administrateur des statuts ;
-- réglages : URL d’API persistante, test de santé, déconnexion et thème
-  système/clair/sombre ;
+- réglages : connexion publique verrouillée sur le domaine FleurApp,
+  déconnexion et thème système/clair/sombre ;
 - ports séparés pour Stripe Tap to Pay, Bluetooth et impression de tickets.
 
 Tous les montants sont manipulés en centimes entiers. Aucune donnée fictive
@@ -50,7 +50,7 @@ lib/
 │   ├── home/             # Navigation responsive et transitions
 │   ├── notifications/    # Centre d’alertes et rappels J-1
 │   ├── pos/              # Caisse, panier, paiement et tickets
-│   ├── settings/         # URL Render, santé, session et apparence
+│   ├── settings/         # Session, activation de caisse et apparence
 │   └── shared/           # Garde PIN/JWT et retours d’erreur
 ├── integrations/         # Ports Tap to Pay, Bluetooth et impression
 ├── models/               # Contrats API typés, montants en centimes
@@ -88,8 +88,8 @@ Ce dépôt force Gradle à utiliser Java 17 dans `android/gradle.properties` :
 org.gradle.java.home=/home/ipsoum/.sdkman/candidates/java/current
 ```
 
-Ne supprimez pas cette ligne tant que le Java système Fedora est incompatible
-avec Gradle 8.7.
+Ne supprimez pas cette ligne : elle garantit une construction reproductible
+avec Java 17 et Gradle 9.3.1.
 
 ## 2. Installer les dépendances
 
@@ -98,29 +98,19 @@ cd /home/ipsoum/fleurapp_project/fleurapp-mobile
 flutter pub get
 ```
 
-Sur cette installation Flutter 3.24/Dart 3.5, Dart peut ne pas détecter seul le
-bundle de certificats Fedora. La commande équivalente et vérifiée est :
+Le projet est validé avec Flutter 3.47.0, Dart 3.13.0, Android API 36, AGP 9.1,
+Gradle 9.3.1, NDK 28.2 et Java 17.
 
-```bash
-/home/ipsoum/development/flutter/bin/cache/dart-sdk/bin/dart \
-  --root-certs-file=/etc/ssl/certs/ca-certificates.crt pub get
-flutter pub get --offline
-```
+## 3. Connexion au service FleurApp
 
-## 3. Configurer Render
+La version publique utilise automatiquement `https://api.fleurapp.fr`. Aucun
+fleuriste n’a d’adresse technique à saisir. Une ancienne URL enregistrée par
+une version bêta est volontairement ignorée après la mise à jour.
 
-Deux méthodes sont possibles :
-
-1. lancer/compiler avec une valeur initiale :
-
-```bash
-flutter run \
-  --dart-define=API_BASE_URL=https://VOTRE-SERVICE.onrender.com
-```
-
-2. ouvrir **Réglages** dans l’application, saisir l’URL HTTPS sans `/api`, la
-   tester puis l’enregistrer. Cette valeur locale prend ensuite priorité sur le
-   `dart-define`.
+Le choix manuel d’un backend est réservé aux builds QA. Il faut l’activer
+explicitement à la compilation avec
+`--dart-define=ALLOW_SERVER_CONFIGURATION=true` ; le réglage apparaît alors
+comme **Serveur de recette**.
 
 Ne placez jamais `JWT_SECRET`, `ADMIN_PIN_HASH`, `DATABASE_URL` ou un autre
 secret serveur dans l’APK. Seul le JWT obtenu après saisie du PIN est stocké
@@ -149,11 +139,10 @@ Activez les options développeur et le débogage USB, puis :
 ```bash
 adb devices
 flutter devices
-flutter run \
-  --dart-define=API_BASE_URL=https://VOTRE-SERVICE.onrender.com
+flutter run --flavor production
 ```
 
-Le téléphone communique directement avec Render en HTTPS. Pour un backend
+Le téléphone communique avec `api.fleurapp.fr` en HTTPS. Pour un backend
 local depuis l’émulateur Android, seule l’adresse `http://10.0.2.2:PORT` est
 autorisée en développement ; utilisez HTTPS en dehors de localhost.
 
@@ -174,10 +163,17 @@ npx localtunnel --port 3000
 ngrok http 3000
 ```
 
-Dans **Réglages > Serveur Render**, remplacez temporairement l’URL par l’URL
-HTTPS du tunnel, testez-la puis enregistrez-la. Le client ajoute le header de
-contournement de la page d’avertissement localtunnel ; aucun secret n’est placé
-dans l’APK.
+Lancez ensuite l’application QA avec le tunnel injecté et le réglage technique
+activé :
+
+```bash
+flutter run --flavor qa \
+  --dart-define=ALLOW_SERVER_CONFIGURATION=true \
+  --dart-define=API_BASE_URL=https://VOTRE-TUNNEL
+```
+
+Le client ajoute le header de contournement de la page d’avertissement
+localtunnel ; aucun secret n’est placé dans l’APK.
 
 ## Import CSV du catalogue
 
@@ -235,7 +231,7 @@ dart format --output=none --set-exit-if-changed lib test integration_test
 flutter analyze
 flutter test
 flutter build apk --debug --flavor qa --no-pub \
-  --dart-define=API_BASE_URL=https://VOTRE-SERVICE.onrender.com
+  --dart-define=ALLOW_SERVER_CONFIGURATION=true
 ```
 
 APK de recette à installer sur les téléphones de test :
@@ -279,9 +275,8 @@ est vérifié cryptographiquement puis copié dans le dossier partagé `releases
 # ou : ./tool/qa.sh release
 ```
 
-L’URL Render utilisée par défaut est `https://fleurapp-ksay.onrender.com`. Pour
-une autre instance, utilisez ponctuellement
-`API_BASE_URL=https://exemple.onrender.com ./tool/build-release.sh`.
+Le domaine utilisé par défaut est `https://api.fleurapp.fr`. Le script verrouille
+le sélecteur de serveur dans les versions publiques.
 
 ### Procédure manuelle de secours
 
@@ -317,8 +312,9 @@ Construisez et vérifiez ensuite l’APK :
 
 ```bash
 flutter build apk --release --flavor production --no-pub \
-  --dart-define=API_BASE_URL=https://VOTRE-SERVICE.onrender.com
-/home/ipsoum/Android/Sdk/build-tools/35.0.0/apksigner verify --verbose \
+  --dart-define=API_BASE_URL=https://api.fleurapp.fr \
+  --dart-define=ALLOW_SERVER_CONFIGURATION=false
+/home/ipsoum/Android/Sdk/build-tools/36.0.0/apksigner verify --verbose \
   build/app/outputs/flutter-apk/app-production-release.apk
 ```
 
@@ -326,7 +322,8 @@ APK séparés par architecture :
 
 ```bash
 flutter build apk --release --flavor production --split-per-abi --no-pub \
-  --dart-define=API_BASE_URL=https://VOTRE-SERVICE.onrender.com
+  --dart-define=API_BASE_URL=https://api.fleurapp.fr \
+  --dart-define=ALLOW_SERVER_CONFIGURATION=false
 ```
 
 Ne partagez jamais `android/key.properties`, le keystore ou ses mots de passe.
@@ -375,7 +372,8 @@ signature nécessitent macOS, Xcode et un compte Apple Developer :
 
 ```bash
 flutter build ios --release \
-  --dart-define=API_BASE_URL=https://VOTRE-SERVICE.onrender.com
+  --dart-define=API_BASE_URL=https://api.fleurapp.fr \
+  --dart-define=ALLOW_SERVER_CONFIGURATION=false
 ```
 
 ## Paiement et matériels

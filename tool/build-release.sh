@@ -4,7 +4,7 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKSPACE_ROOT="$(dirname "$PROJECT_ROOT")"
 FLUTTER_BIN="${FLUTTER_BIN:-$(command -v flutter || true)}"
-API_BASE_URL="${API_BASE_URL:-https://fleurapp-ksay.onrender.com}"
+API_BASE_URL="${API_BASE_URL:-https://api.fleurapp.fr}"
 KEY_PROPERTIES="${PROJECT_ROOT}/android/key.properties"
 RELEASES_DIR="${WORKSPACE_ROOT}/releases"
 
@@ -44,9 +44,14 @@ if [[ ! -x "$AAPT_BIN" ]]; then
 fi
 
 cd "$PROJECT_ROOT"
+"$FLUTTER_BIN" clean
 "$FLUTTER_BIN" pub get --offline
+"$FLUTTER_BIN" build apk --config-only --flavor production \
+  --dart-define="API_BASE_URL=${API_BASE_URL%/}" \
+  --dart-define="ALLOW_SERVER_CONFIGURATION=false"
 "$FLUTTER_BIN" build apk --release --flavor production --split-per-abi --no-pub \
-  --dart-define="API_BASE_URL=${API_BASE_URL%/}"
+  --dart-define="API_BASE_URL=${API_BASE_URL%/}" \
+  --dart-define="ALLOW_SERVER_CONFIGURATION=false"
 
 mapfile -t RELEASE_APKS < <(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name 'app-*-production-release.apk' -print | sort)
 if [[ ${#RELEASE_APKS[@]} -eq 0 ]]; then

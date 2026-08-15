@@ -141,7 +141,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
             const SizedBox(height: 18),
             if (widget.customers.isNotEmpty) ...[
               DropdownButtonFormField<int?>(
-                value: _customerId,
+                initialValue: _customerId,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Client (facultatif)',

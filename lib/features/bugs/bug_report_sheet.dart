@@ -130,7 +130,7 @@ class _BugReportSheetState extends State<BugReportSheet> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<BugCategory>(
-                  value: _category,
+                  initialValue: _category,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Catégorie',

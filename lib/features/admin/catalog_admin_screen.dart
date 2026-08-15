@@ -190,7 +190,7 @@ class _CatalogAdminScreenState extends State<CatalogAdminScreen> {
                               children: [
                                 Expanded(
                                   child: DropdownButtonFormField<int?>(
-                                    value: _categoryId,
+                                    initialValue: _categoryId,
                                     isExpanded: true,
                                     decoration: const InputDecoration(
                                       labelText: 'Catégorie',
@@ -308,18 +308,12 @@ class _CatalogImportDialogState extends State<CatalogImportDialog> {
 
   Future<void> _pickFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final file = await FilePicker.pickFile(
         type: FileType.custom,
         allowedExtensions: const ['csv'],
-        allowMultiple: false,
-        withData: true,
       );
-      if (result == null || result.files.isEmpty) return;
-      final file = result.files.single;
-      final bytes = file.bytes;
-      if (bytes == null) {
-        throw const FormatException('Le téléphone n’a pas pu lire ce fichier.');
-      }
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
       final rows = CatalogCsvParser.parse(bytes);
       setState(() {
         _rows = rows;
@@ -420,7 +414,7 @@ class _CatalogImportDialogState extends State<CatalogImportDialog> {
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<CatalogDuplicateMode>(
-                value: _duplicateMode,
+                initialValue: _duplicateMode,
                 isExpanded: true,
                 decoration:
                     const InputDecoration(labelText: 'Produits existants'),

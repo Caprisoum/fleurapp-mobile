@@ -467,9 +467,9 @@ class _ReceiptSummary extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: colors.primaryContainer.withOpacity(.42),
+        color: colors.primaryContainer.withValues(alpha: .42),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.primary.withOpacity(.22)),
+        border: Border.all(color: colors.primary.withValues(alpha: .22)),
       ),
       child: Column(
         children: [
@@ -569,7 +569,7 @@ class _WasteDialogState extends State<_WasteDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _reason,
+                initialValue: _reason,
                 decoration: const InputDecoration(labelText: 'Motif'),
                 items: const ['Fané', 'Cassé', 'Invendable', 'Autre']
                     .map((reason) => DropdownMenuItem(

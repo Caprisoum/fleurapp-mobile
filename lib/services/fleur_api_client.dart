@@ -682,7 +682,7 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
         (uri.scheme != 'https' && !localDevelopment) ||
         uri.path.isNotEmpty && uri.path != '/') {
       throw const ApiException(
-        'Utilisez une URL HTTPS sans /api, par exemple https://service.onrender.com.',
+        'Utilisez une URL HTTPS sans /api, par exemple https://api.fleurapp.fr.',
       );
     }
     return normalized;

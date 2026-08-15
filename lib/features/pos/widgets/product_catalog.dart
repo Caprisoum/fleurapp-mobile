@@ -232,7 +232,7 @@ class _CustomSaleCard extends StatelessWidget {
       child: Card(
         key: const Key('custom-sale-card'),
         clipBehavior: Clip.antiAlias,
-        color: colors.tertiaryContainer.withOpacity(.72),
+        color: colors.tertiaryContainer.withValues(alpha: .72),
         child: InkWell(
           onTap: onTap,
           child: Padding(
@@ -275,7 +275,7 @@ class _CustomSaleCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: colors.onTertiaryContainer.withOpacity(.78),
+                    color: colors.onTertiaryContainer.withValues(alpha: .78),
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),

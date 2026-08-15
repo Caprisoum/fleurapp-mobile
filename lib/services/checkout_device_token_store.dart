@@ -10,7 +10,7 @@ class SecureCheckoutDeviceTokenStore implements CheckoutDeviceTokenStore {
   const SecureCheckoutDeviceTokenStore({FlutterSecureStorage? storage})
       : _storage = storage ??
             const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
+              aOptions: AndroidOptions(migrateWithBackup: true),
             );
 
   static const _key = 'fleurapp_checkout_device_token';

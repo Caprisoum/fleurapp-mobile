@@ -204,7 +204,7 @@ class _StockList extends StatelessWidget {
               child: ListTile(
                 minVerticalPadding: 12,
                 leading: CircleAvatar(
-                  backgroundColor: color.withOpacity(.12),
+                  backgroundColor: color.withValues(alpha: .12),
                   child: Text('$stock',
                       style:
                           TextStyle(color: color, fontWeight: FontWeight.w900)),
@@ -363,7 +363,7 @@ class _BomList extends StatelessWidget {
                 return Card(
                   child: ExpansionTile(
                     leading: CircleAvatar(
-                      backgroundColor: color.withOpacity(.12),
+                      backgroundColor: color.withValues(alpha: .12),
                       child: Text(
                         '${recipe.availableQuantity}',
                         style: TextStyle(

@@ -35,7 +35,8 @@ static_security() {
 }
 
 build_apk() {
-  "$FLUTTER_BIN" build apk --debug --flavor qa --no-pub
+  "$FLUTTER_BIN" build apk --debug --flavor qa --no-pub \
+    --dart-define="ALLOW_SERVER_CONFIGURATION=true"
 }
 
 build_release() {
@@ -48,7 +49,8 @@ integration_tests() {
 
   set +e
   "$FLUTTER_BIN" test integration_test/app_full_test.dart \
-    --flavor qa -d "$device_id"
+    --flavor qa -d "$device_id" \
+    --dart-define="ALLOW_SERVER_CONFIGURATION=true"
   local test_status=$?
   set -e
 

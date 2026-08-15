@@ -192,7 +192,9 @@ class CatalogCsvParser {
       } else if ((character == '\n' || character == '\r') && !quoted) {
         if (character == '\r' &&
             index + 1 < source.length &&
-            source[index + 1] == '\n') index += 1;
+            source[index + 1] == '\n') {
+          index += 1;
+        }
         record.add(field.toString().trim());
         if (record.any((value) => value.isNotEmpty)) records.add(record);
         record = <String>[];

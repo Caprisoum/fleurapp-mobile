@@ -345,7 +345,7 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.settings_outlined).last);
     await tester.pumpAndSettle();
-    expect(find.text('Serveur Render'), findsOneWidget);
+    expect(find.text('Serveur de recette'), findsNothing);
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.byIcon(Icons.notifications_outlined).first);

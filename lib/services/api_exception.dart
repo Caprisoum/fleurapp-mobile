@@ -21,7 +21,7 @@ class ApiException implements Exception {
 class ApiConfigurationException extends ApiException {
   const ApiConfigurationException()
       : super(
-          'Adresse du backend absente. Relancez avec '
-          '--dart-define=API_BASE_URL=https://votre-service.onrender.com',
+          'Le service FleurApp est temporairement indisponible. '
+          'Réinstallez l’application ou contactez l’assistance.',
         );
 }

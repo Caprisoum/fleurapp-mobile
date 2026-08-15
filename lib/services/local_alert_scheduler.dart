@@ -88,7 +88,7 @@ class FlutterLocalAlertScheduler implements LocalAlertScheduler {
         requestSoundPermission: false,
       ),
     );
-    await _plugin.initialize(settings);
+    await _plugin.initialize(settings: settings);
     _initialized = true;
   }
 
@@ -145,7 +145,7 @@ class FlutterLocalAlertScheduler implements LocalAlertScheduler {
     for (final notification in pending) {
       if ((notification.payload ?? '').startsWith(_payloadPrefix) &&
           !desiredNotificationIds.contains(notification.id)) {
-        await _plugin.cancel(notification.id);
+        await _plugin.cancel(id: notification.id);
       }
     }
 
@@ -177,34 +177,32 @@ class FlutterLocalAlertScheduler implements LocalAlertScheduler {
       final reminderKey = '${alert.id}:j-1';
       final reminderId = _notificationId(reminderKey);
       final payloadValue = '$_payloadPrefix${alert.id}';
-      await _plugin.cancel(reminderId);
+      await _plugin.cancel(id: reminderId);
 
       if (alert.type == UpcomingAlertType.arrival) {
         final dayKey = '${alert.id}:jour-j';
         final dayId = _notificationId(dayKey);
-        await _plugin.cancel(dayId);
+        await _plugin.cancel(id: dayId);
         if (_isBeforeDate(eventAt, now)) continue;
 
         if (_isSameDate(eventAt, now)) {
           if (eventAt.isAfter(now)) {
             await _plugin.zonedSchedule(
-              dayId,
-              alert.title,
-              alert.message,
-              eventAt,
-              _notificationDetails,
+              id: dayId,
+              title: alert.title,
+              body: alert.message,
+              scheduledDate: eventAt,
+              notificationDetails: _notificationDetails,
               androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-              uiLocalNotificationDateInterpretation:
-                  UILocalNotificationDateInterpretation.absoluteTime,
               payload: payloadValue,
             );
             scheduled += 1;
           } else if (shown.add(dayKey)) {
             await _plugin.show(
-              dayId,
-              alert.title,
-              alert.message,
-              _notificationDetails,
+              id: dayId,
+              title: alert.title,
+              body: alert.message,
+              notificationDetails: _notificationDetails,
               payload: payloadValue,
             );
             shownNow += 1;
@@ -213,14 +211,13 @@ class FlutterLocalAlertScheduler implements LocalAlertScheduler {
         }
 
         await _plugin.zonedSchedule(
-          dayId,
-          'Aujourd’hui — ${alert.title.replaceFirst('Arrivage à venir — ', '')}',
-          alert.message,
-          eventAt,
-          _notificationDetails,
+          id: dayId,
+          title:
+              'Aujourd’hui — ${alert.title.replaceFirst('Arrivage à venir — ', '')}',
+          body: alert.message,
+          scheduledDate: eventAt,
+          notificationDetails: _notificationDetails,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
           payload: payloadValue,
         );
         scheduled += 1;
@@ -230,23 +227,21 @@ class FlutterLocalAlertScheduler implements LocalAlertScheduler {
 
       if (remindAt.isAfter(now)) {
         await _plugin.zonedSchedule(
-          reminderId,
-          alert.title,
-          alert.message,
-          remindAt,
-          _notificationDetails,
+          id: reminderId,
+          title: alert.title,
+          body: alert.message,
+          scheduledDate: remindAt,
+          notificationDetails: _notificationDetails,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
           payload: payloadValue,
         );
         scheduled += 1;
       } else if (shown.add(reminderKey)) {
         await _plugin.show(
-          reminderId,
-          alert.title,
-          alert.message,
-          _notificationDetails,
+          id: reminderId,
+          title: alert.title,
+          body: alert.message,
+          notificationDetails: _notificationDetails,
           payload: payloadValue,
         );
         shownNow += 1;

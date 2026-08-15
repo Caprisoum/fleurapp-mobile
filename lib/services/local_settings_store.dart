@@ -26,9 +26,11 @@ class PreferencesLocalSettingsStore implements LocalSettingsStore {
     final savedUrl = preferences.getString(_apiUrlKey)?.trim();
     final savedTheme = preferences.getString(_themeKey);
     return LocalSettings(
-      apiBaseUrl: savedUrl == null || savedUrl.isEmpty
-          ? AppConfig.apiBaseUrl
-          : savedUrl,
+      apiBaseUrl: AppConfig.allowServerConfiguration &&
+              savedUrl != null &&
+              savedUrl.isNotEmpty
+          ? savedUrl
+          : AppConfig.apiBaseUrl,
       themeMode: switch (savedTheme) {
         'light' => ThemeMode.light,
         'dark' => ThemeMode.dark,
@@ -39,6 +41,7 @@ class PreferencesLocalSettingsStore implements LocalSettingsStore {
 
   @override
   Future<void> writeApiBaseUrl(String value) async {
+    if (!AppConfig.allowServerConfiguration) return;
     final preferences = await SharedPreferences.getInstance();
     await preferences.setString(_apiUrlKey, value);
   }

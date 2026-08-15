@@ -88,7 +88,7 @@ class _BugReportsPanelState extends State<BugReportsPanel> {
           ),
           const SizedBox(height: 14),
           DropdownButtonFormField<BugReportStatus?>(
-            value: _filter,
+            initialValue: _filter,
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Filtrer par statut',
@@ -215,7 +215,8 @@ class _BugReportCard extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             DropdownButtonFormField<BugReportStatus>(
-              value: report.status,
+              key: ValueKey('${report.id}-${report.status.name}'),
+              initialValue: report.status,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Statut du rapport'),
               items: BugReportStatus.values

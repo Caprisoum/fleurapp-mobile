@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/config/app_config.dart';
 import '../../services/api_exception.dart';
 import '../../state/app_controller.dart';
 import '../bugs/bug_report_sheet.dart';
@@ -147,54 +148,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   .headlineSmall
                   ?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 14),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text('Serveur Render',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 6),
-                  const Text(
-                      'URL HTTPS sans suffixe /api. Elle est enregistrée uniquement sur cet appareil.'),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: _url,
-                    keyboardType: TextInputType.url,
-                    autocorrect: false,
-                    decoration: const InputDecoration(
-                      labelText: 'URL de l’API',
-                      hintText: 'https://votre-service.onrender.com',
-                      prefixIcon: Icon(Icons.cloud_outlined),
+          if (AppConfig.allowServerConfiguration) ...[
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text('Serveur de recette',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 6),
+                    const Text(
+                        'Réglage technique réservé aux builds QA. URL HTTPS sans suffixe /api.'),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: _url,
+                      keyboardType: TextInputType.url,
+                      autocorrect: false,
+                      decoration: const InputDecoration(
+                        labelText: 'URL de l’API',
+                        hintText: 'https://backend-qa.example.com',
+                        prefixIcon: Icon(Icons.cloud_outlined),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: _testing ? null : _test,
-                        icon: const Icon(Icons.monitor_heart_outlined),
-                        label: Text(_testing ? 'Test…' : 'Tester'),
-                      ),
-                      FilledButton.icon(
-                        onPressed: _saving ? null : _save,
-                        icon: const Icon(Icons.save_outlined),
-                        label:
-                            Text(_saving ? 'Enregistrement…' : 'Enregistrer'),
-                      ),
-                    ],
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _testing ? null : _test,
+                          icon: const Icon(Icons.monitor_heart_outlined),
+                          label: Text(_testing ? 'Test…' : 'Tester'),
+                        ),
+                        FilledButton.icon(
+                          onPressed: _saving ? null : _save,
+                          icon: const Icon(Icons.save_outlined),
+                          label:
+                              Text(_saving ? 'Enregistrement…' : 'Enregistrer'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 10),
+            const SizedBox(height: 10),
+          ],
           Card(
             child: ListTile(
               minVerticalPadding: 14,
