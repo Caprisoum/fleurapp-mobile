@@ -83,8 +83,30 @@ LATEST_APK="${RELEASES_DIR}/FleurApp-beta-latest-arm64-release.apk"
 install -m 644 "$ARM64_APK" "$FINAL_APK"
 install -m 644 "$ARM64_APK" "$LATEST_APK"
 
+APK_SHA256="$(sha256sum "$FINAL_APK" | awk '{print $1}')"
+BUILD_COMMIT="$(git rev-parse HEAD)"
+BUILD_BRANCH="$(git rev-parse --abbrev-ref HEAD | sed 's/["\\]/_/g')"
+if [[ -n "$(git status --porcelain)" ]]; then BUILD_DIRTY=true; else BUILD_DIRTY=false; fi
+BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+BUILD_MANIFEST="${FINAL_APK%.apk}.build.json"
+printf '%s\n' \
+  '{' \
+  '  "schemaVersion": 1,' \
+  "  \"generatedAt\": \"${BUILD_TIMESTAMP}\"," \
+  "  \"apk\": \"$(basename "$FINAL_APK")\"," \
+  "  \"apkSha256\": \"${APK_SHA256}\"," \
+  "  \"versionName\": \"${VERSION_NAME}\"," \
+  "  \"versionCode\": \"${VERSION_CODE}\"," \
+  "  \"gitCommit\": \"${BUILD_COMMIT}\"," \
+  "  \"gitBranch\": \"${BUILD_BRANCH}\"," \
+  "  \"gitDirty\": ${BUILD_DIRTY}," \
+  "  \"apiOrigin\": \"${API_BASE_URL%/}\"" \
+  '}' > "$BUILD_MANIFEST"
+chmod 600 "$BUILD_MANIFEST"
+
 echo
 echo "APK release signé et vérifié :"
 ls -lh "$FINAL_APK"
 sha256sum "$FINAL_APK"
 echo "Copie stable : $LATEST_APK"
+echo "Attestation de build : $BUILD_MANIFEST"
