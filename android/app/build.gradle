@@ -12,7 +12,9 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "fr.fleurapp.fleurapp_mobile"
-    compileSdk = flutter.compileSdkVersion
+    // flutter_secure_storage 11 retire l'ancien AES-CBC et exige l'API 37
+    // à la compilation. targetSdk reste piloté séparément par Flutter.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
