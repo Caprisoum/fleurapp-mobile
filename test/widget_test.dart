@@ -51,6 +51,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Bouquet champêtre'), findsOneWidget);
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('pos-category-filter-Tout')))
+          .height,
+      greaterThanOrEqualTo(48),
+    );
     await tester.tap(find.text('Bouquet champêtre'));
     await tester.pump();
     await tester.tap(find.text('Panier'));

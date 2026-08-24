@@ -109,7 +109,7 @@ class _ProductCatalogState extends State<ProductCatalog> {
         ),
         const SizedBox(height: 10),
         SizedBox(
-          height: 42,
+          height: 48,
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: [
@@ -321,6 +321,7 @@ class _CategoryChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return ChoiceChip(
+      key: ValueKey('pos-category-filter-$label'),
       label: Text(label),
       selected: selected,
       onSelected: (_) => onSelected(),
