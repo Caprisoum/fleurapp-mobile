@@ -30,28 +30,6 @@ class _BugReportsPanelState extends State<BugReportsPanel> {
     }
   }
 
-  Future<void> _update(
-    BugReport report,
-    BugReportStatus status,
-  ) async {
-    try {
-      await widget.appController.admin.updateBugReportStatus(report, status);
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-            content: Text('Rapport #${report.id} : ${status.label}.'),
-            behavior: SnackBarBehavior.floating,
-          ));
-      }
-    } on ApiException catch (error) {
-      if (error.isUnauthorized) {
-        await widget.appController.handleUnauthorized();
-      }
-      if (mounted) showApiError(context, error);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final admin = widget.appController.admin;
@@ -84,7 +62,7 @@ class _BugReportsPanelState extends State<BugReportsPanel> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Consultez les signalements Web et mobile, puis suivez leur résolution.',
+            'Consultez les signalements Web et mobile et suivez leur résolution par le support FleurApp.',
           ),
           const SizedBox(height: 14),
           DropdownButtonFormField<BugReportStatus?>(
@@ -107,6 +85,24 @@ class _BugReportsPanelState extends State<BugReportsPanel> {
               ),
             ],
             onChanged: (value) => setState(() => _filter = value),
+          ),
+          const SizedBox(height: 10),
+          Card.filled(
+            child: const Padding(
+              padding: EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.support_agent_rounded),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Le fleuriste signale et consulte. Seule l’équipe technique peut modifier le statut et fermer un incident.',
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
@@ -132,8 +128,6 @@ class _BugReportsPanelState extends State<BugReportsPanel> {
             ...reports.map(
               (report) => _BugReportCard(
                 report: report,
-                busy: admin.busy,
-                onStatusChanged: (status) => _update(report, status),
               ),
             ),
         ],
@@ -145,13 +139,9 @@ class _BugReportsPanelState extends State<BugReportsPanel> {
 class _BugReportCard extends StatelessWidget {
   const _BugReportCard({
     required this.report,
-    required this.busy,
-    required this.onStatusChanged,
   });
 
   final BugReport report;
-  final bool busy;
-  final ValueChanged<BugReportStatus> onStatusChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -214,24 +204,37 @@ class _BugReportCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
-            DropdownButtonFormField<BugReportStatus>(
-              key: ValueKey('${report.id}-${report.status.name}'),
-              initialValue: report.status,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Statut du rapport'),
-              items: BugReportStatus.values
-                  .map((status) => DropdownMenuItem(
-                        value: status,
-                        child: Text(status.label),
-                      ))
-                  .toList(),
-              onChanged: busy
-                  ? null
-                  : (value) {
-                      if (value != null && value != report.status) {
-                        onStatusChanged(value);
-                      }
-                    },
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colors.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.support_agent_rounded, color: colors.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Suivi par le support FleurApp',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          report.status == BugReportStatus.resolved
+                              ? 'Ce signalement a été marqué comme résolu par l’équipe technique.'
+                              : 'Aucune action n’est nécessaire ici. Le statut évoluera après analyse technique.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:fleurapp_mobile/app.dart';
-import 'package:fleurapp_mobile/models/bug_report.dart';
 import 'package:fleurapp_mobile/models/payment_method.dart';
 import 'package:fleurapp_mobile/services/fleur_api_client.dart';
 import 'package:fleurapp_mobile/services/checkout_device_token_store.dart';
@@ -343,14 +342,9 @@ void main() {
       await tester.tap(find.text('Bugs'));
       await tester.pumpAndSettle();
       expect(find.text('Contraste du catalogue'), findsOneWidget);
-      final bugStatus = find.byType(DropdownButtonFormField<BugReportStatus>);
-      await tester.ensureVisible(bugStatus);
-      await tester.tap(bugStatus);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Résolu').last);
-      await tester.pumpAndSettle();
-      expect(find.text('Rapport #31 : Résolu.'), findsOneWidget);
-      expect(harness.backend.bugs.first['statut'], 'RESOLU');
+      expect(find.text('Suivi par le support FleurApp'), findsOneWidget);
+      expect(find.text('Statut du rapport'), findsNothing);
+      expect(harness.backend.bugs.first['statut'], 'NOUVEAU');
 
       await tester.tap(find.byTooltip('Alertes à venir'));
       await tester.pumpAndSettle();

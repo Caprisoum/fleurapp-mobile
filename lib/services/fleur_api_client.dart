@@ -73,10 +73,6 @@ abstract class AdminApiClient {
   Future<String> exportFec(int year);
   Future<UpcomingAlertsPayload> fetchUpcomingAlerts();
   Future<List<BugReport>> fetchBugReports({BugReportStatus? status});
-  Future<BugReport> updateBugReportStatus(
-    int id,
-    BugReportStatus status,
-  );
 }
 
 class RenderApiClient implements FleurApiClient, AdminApiClient {
@@ -299,28 +295,6 @@ class RenderApiClient implements FleurApiClient, AdminApiClient {
     final path =
         Uri(path: '/api/admin/bugs', queryParameters: query).toString();
     return _getList(path, BugReport.fromJson, admin: true);
-  }
-
-  @override
-  Future<BugReport> updateBugReportStatus(
-    int id,
-    BugReportStatus status,
-  ) async {
-    final payload = await _sendJson(
-      'PATCH',
-      '/api/admin/bugs/$id',
-      body: {'statut': status.apiValue},
-      admin: true,
-    );
-    final bug = payload['bug'];
-    if (bug is! Map) {
-      throw const ApiException('Rapport actualisé absent de la réponse.');
-    }
-    try {
-      return BugReport.fromJson(Map<String, dynamic>.from(bug));
-    } on FormatException catch (error) {
-      throw ApiException(error.message);
-    }
   }
 
   @override

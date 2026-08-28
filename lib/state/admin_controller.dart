@@ -239,20 +239,6 @@ class AdminController extends ChangeNotifier {
     _notify();
   }
 
-  Future<void> updateBugReportStatus(
-    BugReport report,
-    BugReportStatus status,
-  ) async {
-    late BugReport updated;
-    await _action(() async {
-      updated = await _apiClient.updateBugReportStatus(report.id, status);
-    });
-    bugReports = bugReports
-        .map((item) => item.id == updated.id ? updated : item)
-        .toList(growable: false);
-    _notify();
-  }
-
   Future<void> _action(Future<void> Function() callback) async {
     busy = true;
     _notify();

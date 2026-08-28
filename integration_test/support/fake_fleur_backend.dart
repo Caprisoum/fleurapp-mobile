@@ -514,12 +514,6 @@ class FakeFleurBackend {
         'caParMode': {'Espèces': '4.50'},
       });
     }
-    if (method == 'PATCH' && path.startsWith('/api/admin/bugs/')) {
-      final id = int.parse(path.split('/').last);
-      final report = bugs.firstWhere((item) => item['id'] == id);
-      report['statut'] = _body(request)['statut'];
-      return _json({'success': true, 'bug': report});
-    }
     return _json({'error': 'Route de test absente : $method $path'},
         status: 404);
   }

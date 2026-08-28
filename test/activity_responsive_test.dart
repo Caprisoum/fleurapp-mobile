@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fleurapp_mobile/app.dart';
-import 'package:fleurapp_mobile/models/bug_report.dart';
 import 'package:fleurapp_mobile/services/fleur_api_client.dart';
 import 'package:fleurapp_mobile/state/app_controller.dart';
 
@@ -96,15 +95,14 @@ void main() {
     await tester.tap(find.text('Bugs'));
     await tester.pumpAndSettle();
     expect(find.text('Contraste du catalogue'), findsOneWidget);
-    final bugStatus = find.byType(DropdownButtonFormField<BugReportStatus>);
-    await tester.ensureVisible(bugStatus);
-    await tester.drag(find.byType(Scrollable).last, const Offset(0, -120));
-    await tester.pumpAndSettle();
-    await tester.tap(bugStatus);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Résolu').last);
-    await tester.pumpAndSettle();
-    expect(backend.bugs.first['statut'], 'RESOLU');
+    await tester.scrollUntilVisible(
+      find.text('Suivi par le support FleurApp'),
+      180,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Suivi par le support FleurApp'), findsOneWidget);
+    expect(find.text('Statut du rapport'), findsNothing);
+    expect(backend.bugs.first['statut'], 'NOUVEAU');
 
     await tester.tap(find.byTooltip('Alertes à venir'));
     await tester.pumpAndSettle();

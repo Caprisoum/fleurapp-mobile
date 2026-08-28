@@ -347,6 +347,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Rapports de bugs'), findsOneWidget);
     expect(find.text('Filtrer par statut'), findsOneWidget);
+    expect(
+      find.textContaining('Seule l’équipe technique peut modifier le statut'),
+      findsOneWidget,
+    );
+    expect(find.text('Statut du rapport'), findsNothing);
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.byIcon(Icons.settings_outlined).last);

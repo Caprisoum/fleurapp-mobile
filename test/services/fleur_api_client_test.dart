@@ -499,7 +499,7 @@ void main() {
     api.close();
   });
 
-  test('liste et traite les rapports avec le JWT admin', () async {
+  test('liste les rapports en lecture seule avec le JWT admin', () async {
     final requests = <http.Request>[];
     final stored = {
       'id': 22,
@@ -515,26 +515,18 @@ void main() {
       baseUrl: 'https://fleurapp-test.onrender.com',
       httpClient: MockClient((request) async {
         requests.add(request);
-        return request.method == 'GET'
-            ? _jsonResponse([stored])
-            : _jsonResponse({'success': true, 'bug': stored});
+        return _jsonResponse([stored]);
       }),
     )..updateAdminToken('jwt-bugs');
 
     final reports = await api.fetchBugReports(status: BugReportStatus.resolved);
-    final updated = await api.updateBugReportStatus(
-      reports.single.id,
-      BugReportStatus.resolved,
-    );
     expect(requests.first.url.queryParameters, {
       'limit': '200',
       'statut': 'RESOLU',
     });
     expect(requests.first.headers['Authorization'], 'Bearer jwt-bugs');
-    expect(requests.last.method, 'PATCH');
-    expect(requests.last.url.path, '/api/admin/bugs/22');
-    expect(jsonDecode(requests.last.body), {'statut': 'RESOLU'});
-    expect(updated.status, BugReportStatus.resolved);
+    expect(requests, hasLength(1));
+    expect(reports.single.status, BugReportStatus.resolved);
     api.close();
   });
 
